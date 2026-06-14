@@ -27,33 +27,57 @@ export default function PropertiesInspector({
 
         {guiConfig.backgroundType === "CUSTOM" && (
           <div className="flex flex-col gap-1.5 mt-2 pt-2 border-t border-zinc-800">
-            <label className="text-xs text-zinc-400">Background Texture</label>
-            {loadedAssets.length > 0 ? (
-              <select
-                value={guiConfig.customTexture || ''}
-                onChange={(e) => setGuiConfig({...guiConfig, customTexture: e.target.value})}
-                className="w-full bg-zinc-950 p-1.5 rounded border border-zinc-700 text-xs outline-none font-mono text-emerald-300"
-              >
-                <option value="">-- Select background --</option>
+          <label className="text-xs text-zinc-400">Background Texture</label>
+          {loadedAssets.length > 0 ? (
+            <select
+              value={guiConfig.customTexture || ''}
+              onChange={(e) => setGuiConfig({...guiConfig, customTexture: e.target.value})}
+              className="w-full bg-zinc-950 p-1.5 rounded border border-zinc-700 text-xs outline-none font-mono text-emerald-300"
+            >
+              <option value="">-- Select background --</option>
                 {loadedAssets.map(asset => (
                   <option key={asset.minecraftPath} value={asset.minecraftPath}>
                     {asset.minecraftPath}
                   </option>
-                ))}
-              </select>
-            ) : (
+              ))}
+            </select>
+          ) : (
+            <input 
+              type="text" 
+              value={guiConfig.customTexture || ''} 
+              onChange={(e) => setGuiConfig({...guiConfig, customTexture: e.target.value})} 
+              className="w-full bg-zinc-950 p-1.5 rounded border border-zinc-700 text-xs outline-none font-mono text-zinc-400" 
+              placeholder="ponder:textures/gui/bg.png"
+            />
+          )}
+    
+          <div className="grid grid-cols-2 gap-2 mt-2">
+            <div>
+              <label className="text-[10px] text-zinc-400">File Texture Width:</label>
               <input 
-                type="text" 
-                value={guiConfig.customTexture || ''} 
-                onChange={(e) => setGuiConfig({...guiConfig, customTexture: e.target.value})} 
-                className="w-full bg-zinc-950 p-1.5 rounded border border-zinc-700 text-xs outline-none font-mono text-zinc-400" 
-                placeholder="ponder:textures/gui/bg.png"
+                type="number" 
+                value={guiConfig.textureWidth || 256} 
+                onChange={e => setGuiConfig({...guiConfig, textureWidth: parseInt(e.target.value, 10) || 256})} 
+                className="w-full bg-zinc-950 p-1 rounded border border-zinc-700 text-xs text-center font-mono outline-none text-amber-400" 
+                placeholder="256"
               />
-            )}
-            
-            <p className="text-[10px] text-zinc-500 italic mt-1">Note: Dimensions are linked to the global GUI size config on the left panel.</p>
+            </div>
+            <div>
+              <label className="text-[10px] text-zinc-400">File Texture Height:</label>
+              <input 
+                type="number" 
+                value={guiConfig.textureHeight || 256} 
+                onChange={e => setGuiConfig({...guiConfig, textureHeight: parseInt(e.target.value, 10) || 256})} 
+                className="w-full bg-zinc-950 p-1 rounded border border-zinc-700 text-xs text-center font-mono outline-none text-amber-400" 
+                placeholder="256"
+              />
+            </div>
           </div>
-        )}
+          <p className="text-[9px] text-zinc-500 italic mt-1">Enter the actual size (in pixels) of your original .png image file here to correct the zoom in Minecraft.</p>
+
+          <p className="text-[10px] text-zinc-500 italic mt-1 pt-1 border-t border-zinc-800/50">Note: Dimensions are linked to the global GUI size config on the left panel.</p>
+        </div>
+      )}
       </div>
 
       {/* ZONE COMMUNE AUX COMPOSANTS SÉLECTIONNÉS */}
@@ -76,7 +100,8 @@ export default function PropertiesInspector({
             </div>
           )}
 
-          {(selectedComponent.type === 'ImageButton' || selectedComponent.type === 'Image') && (
+          {/* SÉLECTEUR DE TEXTURE : AJOUT DE PLAYERINVENTORY DANS LA CONDITION CI-DESSOUS */}
+          {(selectedComponent.type === 'ImageButton' || selectedComponent.type === 'Image' || selectedComponent.type === 'PlayerInventory') && (
             <div>
               <label className="text-xs text-zinc-400">Texture Asset (Location)</label>
               {loadedAssets.length > 0 ? (
@@ -98,14 +123,14 @@ export default function PropertiesInspector({
                       <img 
                         src={loadedAssets.find(a => a.minecraftPath === selectedComponent.texture)?.localUrl} 
                         alt="Preview" 
-                        className="max-h-full object-contain" 
+                        className="max-h-full object-contain font-mono text-[9px] text-zinc-500" 
                         style={{ imageRendering: 'pixelated' }}
                       />
                     </div>
                   )}
                 </div>
               ) : (
-                <input type="text" value={selectedComponent.texture || ''} onChange={(e) => updateSelectedComponent('texture', e.target.value)} className="w-full bg-zinc-900 p-1.5 rounded border border-zinc-700 text-xs mt-1 outline-none font-mono" placeholder="e.g. ponder:textures/gui/widgets.png" />
+                <input type="text" value={selectedComponent.texture || ''} onChange={(e) => updateSelectedComponent('texture', e.target.value)} className="w-full bg-zinc-900 p-1.5 rounded border border-zinc-700 text-xs mt-1 outline-none font-mono" placeholder="e.g. pondertestgui:textures/gui/widgets.png" />
               )}
             </div>
           )}
@@ -131,11 +156,11 @@ export default function PropertiesInspector({
           <div className="grid grid-cols-2 gap-2">
             <div>
               <label className="text-xs text-zinc-400">Width</label>
-              <input type="number" value={selectedComponent.width} onChange={(e) => updateSelectedComponent('width', parseInt(e.target.value, 10) || 0)} className="w-full bg-zinc-900 p-1.5 rounded border border-zinc-700 text-sm mt-1 outline-none" />
+              <input type="number" value={selectedComponent.width} disabled={selectedComponent.type === 'PlayerInventory'} onChange={(e) => updateSelectedComponent('width', parseInt(e.target.value, 10) || 0)} className="w-full bg-zinc-900 p-1.5 rounded border border-zinc-700 text-sm mt-1 outline-none disabled:opacity-40" />
             </div>
             <div>
               <label className="text-xs text-zinc-400">Height</label>
-              <input type="number" value={selectedComponent.height} onChange={(e) => updateSelectedComponent('height', parseInt(e.target.value, 10) || 0)} className="w-full bg-zinc-900 p-1.5 rounded border border-zinc-700 text-sm mt-1 outline-none" />
+              <input type="number" value={selectedComponent.height} disabled={selectedComponent.type === 'PlayerInventory'} onChange={(e) => updateSelectedComponent('height', parseInt(e.target.value, 10) || 0)} className="w-full bg-zinc-900 p-1.5 rounded border border-zinc-700 text-sm mt-1 outline-none disabled:opacity-40" />
             </div>
           </div>
 

@@ -5,7 +5,11 @@ const generateMenuCode = (guiConfig, slots) => {
     if (slot.type === 'InputSlot') {
       slotRegistrations.push(`        // Input Slot: ${slot.id}\n        this.addSlot(new Slot(container, ${index}, ${slot.x}, ${slot.y}));`);
     } else if (slot.type === 'OutputSlot') {
-      slotRegistrations.push(`        // Output Slot: ${slot.id}\n        this.addSlot(new Slot(container, ${index}, ${slot.x}, ${slot.y}) {`);
+      // AJOUT : On applique automatiquement le décalage de +4 pixels en X et en Y 
+      // pour centrer l'item logiquement au milieu du grand carré de 26x26 dessiné
+      const centerX = slot.x + 4;
+      const centerY = slot.y + 4;
+      slotRegistrations.push(`        // Output Slot (Auto-centered +4px): ${slot.id}\n        this.addSlot(new Slot(container, ${index}, ${centerX}, ${centerY}) {`);
       slotRegistrations.push(`            @Override public boolean mayPlace(ItemStack stack) { return false; }`);
       slotRegistrations.push(`        });`);
     }
@@ -30,7 +34,7 @@ public class ${guiConfig.className}Menu extends AbstractContainerMenu {
     }
 
     public ${guiConfig.className}Menu(int containerId, Inventory playerInventory, Container container) {
-        super(null, containerId); // Link this constructor to your MenuType Registry Object
+        super(null, containerId); //TODO: CHANGE THE NULL
         this.container = container;
         checkContainerSize(container, ${slots.length});
         container.startOpen(playerInventory.player);
@@ -74,12 +78,23 @@ export const generateJavaCode = (guiConfig, components) => {
   let initCode = [];
   let renderBgCode = [];
 
+  // CONFIGURATION ET CORRECTION DE LA TAILLE DU BLIT DE FOND
+  const texWidth = guiConfig.textureWidth || 256;
+  const texHeight = guiConfig.textureHeight || 256;
+
   if (guiConfig.backgroundType === "VANILLA_DARK") {
       renderBgCode.push(`        this.renderBackground(guiGraphics, mouseX, mouseY, partialTick);`);
   } else if (guiConfig.backgroundType === "CONTAINER") {
       renderBgCode.push(`        guiGraphics.blit(net.minecraft.resources.ResourceLocation.withDefaultNamespace("textures/gui/container/dispenser.png"), this.leftPos, this.topPos, 0, 0, 176, 166);`);
   } else if (guiConfig.backgroundType === "CUSTOM") {
-      renderBgCode.push(`        guiGraphics.blit(net.minecraft.resources.ResourceLocation.parse("${guiConfig.customTexture || 'ponder:textures/gui/bg.png'}"), this.leftPos, this.topPos, 0, 0, ${guiConfig.bgWidth}, ${guiConfig.bgHeight});`);
+      const textureLocation = `net.minecraft.resources.ResourceLocation.parse("${guiConfig.customTexture || 'pondertestgui:textures/gui/bg.png'}")`;
+      
+      // Si la taille de l'image .png n'est pas 256x256, on injecte la version avancée pour bloquer le zoom
+      if (texWidth !== 256 || texHeight !== 256) {
+          renderBgCode.push(`        guiGraphics.blit(${textureLocation}, this.leftPos, this.topPos, 0, 0, ${guiConfig.bgWidth}, ${guiConfig.bgHeight}, ${texWidth}, ${texHeight});`);
+      } else {
+          renderBgCode.push(`        guiGraphics.blit(${textureLocation}, this.leftPos, this.topPos, 0, 0, ${guiConfig.bgWidth}, ${guiConfig.bgHeight});`);
+      }
   }
 
   components.forEach(comp => {
@@ -103,11 +118,11 @@ export const generateJavaCode = (guiConfig, components) => {
 
       case 'ImageButton':
         fields.push(`    private ImageButton ${comp.id};`);
-        initCode.push(`        // Image Button: ${comp.id}\n        this.${comp.id} = new ImageButton(${posX}, ${posY}, ${comp.width}, ${comp.height}, new net.minecraft.client.gui.components.WidgetSprites(net.minecraft.resources.ResourceLocation.parse("${comp.texture || 'ponder:textures/gui/widgets.png'}")), button -> {\n            // Click Action\n        });\n        this.addRenderableWidget(this.${comp.id});`);
+        initCode.push(`        // Image Button: ${comp.id}\n        this.${comp.id} = new ImageButton(${posX}, ${posY}, ${comp.width}, ${comp.height}, new net.minecraft.client.gui.components.WidgetSprites(net.minecraft.resources.ResourceLocation.parse("${comp.texture || 'pondertestgui:textures/gui/widgets.png'}")), button -> {\n            // Click Action\n        });\n        this.addRenderableWidget(this.${comp.id});`);
         break;
 
       case 'Image':
-        renderBgCode.push(`        // Static Image: ${comp.id}\n        guiGraphics.blit(net.minecraft.resources.ResourceLocation.parse("${comp.texture || 'ponder:textures/gui/custom_image.png'}"), ${posX}, ${posY}, 0, 0, ${comp.width}, ${comp.height}, ${comp.width}, ${comp.height});`);
+        renderBgCode.push(`        // Static Image: ${comp.id}\n        guiGraphics.blit(net.minecraft.resources.ResourceLocation.parse("${comp.texture || 'pondertestgui:textures/gui/custom_image.png'}"), ${posX}, ${posY}, 0, 0, ${comp.width}, ${comp.height}, ${comp.width}, ${comp.height});`);
         break;
 
       case 'EditBox':
@@ -116,8 +131,16 @@ export const generateJavaCode = (guiConfig, components) => {
         break;
 
       case 'InputSlot':
+        initCode.push(`        // Slot d'entrée: ${comp.id} géré via le Menu à X: ${comp.x}, Y: ${comp.y}`);
+        break;
+
       case 'OutputSlot':
-        initCode.push(`        // Slot: ${comp.id} handled via ${menuClassName} at relative X: ${comp.x}, Y: ${comp.y}`);
+        // On indique dans le commentaire du Screen que la triche de centrage à +4px s'applique
+        initCode.push(`        // Slot de sortie: ${comp.id} centré automatiquement dans le Menu à X: ${comp.x + 4}, Y: ${comp.y + 4}`);
+        break;
+
+      case 'PlayerInventory':
+        initCode.push(`        // Grille d'inventaire du joueur placée à X: ${comp.x}, Y: ${comp.y}`);
         break;
 
       case 'ScrollPanel':
