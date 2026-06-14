@@ -9,7 +9,7 @@ export default function App() {
   
   const [draggingId, setDraggingId] = useState(null);
   const [resizingId, setResizingId] = useState(null);
-  const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
+  const [dragOffset, setDragOffset] = useState({ x: 0, y: 0, origX: 0, origY: 0 });
   const [initialSize, setInitialSize] = useState({ width: 0, height: 0 });
 
   const [loadedAssets, setLoadedAssets] = useState([]); 
@@ -18,7 +18,7 @@ export default function App() {
     modId: "pondertestgui",
     className: "MyCustomScreen",
     guiTitle: "Ponder Custom Menu",
-    backgroundType: "CUSTOM", // FORCÉ EN CUSTOM PAR DÉFAUT
+    backgroundType: "CUSTOM", 
     customTexture: "",
     bgWidth: 176,
     bgHeight: 166,
@@ -79,15 +79,12 @@ export default function App() {
     }
   };
 
+  // FIX DU DRAG : On stocke la position initiale du composant ET la position de la souris
   const handleComponentMouseDown = (e, comp) => {
     if (e.button !== 0 || isPanning) return;
     e.stopPropagation();
     setDraggingId(comp.id);
-    
-    const rect = e.currentTarget.getBoundingClientRect();
-    const mouseX = (e.clientX - rect.left) / scale;
-    const mouseY = (e.clientY - rect.top) / scale;
-    setDragOffset({ x: mouseX, y: mouseY });
+    setDragOffset({ startX: e.clientX, startY: e.clientY, origX: comp.x, origY: comp.y });
   };
 
   const handleResizeMouseDown = (e, comp) => {
@@ -96,7 +93,7 @@ export default function App() {
     e.stopPropagation();
     e.preventDefault();
     setResizingId(comp.id);
-    setDragOffset({ x: e.clientX, y: e.clientY }); 
+    setDragOffset({ startX: e.clientX, startY: e.clientY }); 
     setInitialSize({ width: comp.width, height: comp.height });
   };
 
@@ -114,9 +111,10 @@ export default function App() {
       return;
     }
 
+    // FIX DU RESIZE : Utilisation du delta de la souris divisé par le zoom
     if (resizingId) {
-      const deltaX = (e.clientX - dragOffset.x) / scale;
-      const deltaY = (e.clientY - dragOffset.y) / scale;
+      const deltaX = (e.clientX - dragOffset.startX) / scale;
+      const deltaY = (e.clientY - dragOffset.startY) / scale;
       
       setComponents(components.map(comp => {
         if (comp.id === resizingId) {
@@ -131,18 +129,17 @@ export default function App() {
       return;
     }
 
+    // FIX DU DRAG : Calcul relatif à l'ancienne position (ignore les offsets du DOM)
     if (!draggingId) return;
-    
-    const targetElement = e.currentTarget; 
-    const rect = targetElement.getBoundingClientRect();
-    const mouseX = (e.clientX - rect.left) / scale;
-    const mouseY = (e.clientY - rect.top) / scale;
 
-    let newX = mouseX - dragOffset.x;
-    let newY = mouseY - dragOffset.y;
+    const deltaX = (e.clientX - dragOffset.startX) / scale;
+    const deltaY = (e.clientY - dragOffset.startY) / scale;
 
     setComponents(components.map(comp => {
       if (comp.id === draggingId) {
+        let newX = dragOffset.origX + deltaX;
+        let newY = dragOffset.origY + deltaY;
+
         if (comp.parentId) {
           const parent = components.find(p => p.id === comp.parentId);
           newX = Math.max(0, Math.min(newX, parent.width - comp.width));
@@ -298,7 +295,7 @@ export default function App() {
       try {
         const parsed = JSON.parse(event.target.result);
         if (parsed.guiConfig && parsed.components) {
-          setGuiConfig({ ...parsed.guiConfig, backgroundType: "CUSTOM" }); // Force le CUSTOM à l'importation par sécurité
+          setGuiConfig({ ...parsed.guiConfig, backgroundType: "CUSTOM" });
           setComponents(parsed.components); setSelectedId(null);
         }
       } catch (err) { alert("Error reading JSON file."); }
@@ -471,7 +468,7 @@ export default function App() {
         </div>
       </div>
 
-      {/* 2. THE WORKSPACE CANVAS (Area that handles zoom and pan) */}
+      {/* 2. THE WORKSPACE CANVAS */}
       <div 
         ref={workspaceRef}
         style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', position: 'relative' }} 
@@ -481,8 +478,6 @@ export default function App() {
         onMouseUp={handleCanvasMouseUp}
         onMouseLeave={handleCanvasMouseUp}
         onWheel={handleWorkspaceWheel}
-        onDragOver={(e) => e.preventDefault()} 
-        onDrop={(e) => handleCanvasDrop(e, null)}
       >
         <div className="absolute top-4 right-4 z-50 flex flex-col gap-1">
           <div className="flex items-center gap-1 bg-zinc-800/80 backdrop-blur border border-zinc-700 p-1 rounded shadow-lg">
@@ -512,6 +507,7 @@ export default function App() {
             left: 0
           }}
         >
+          {/* LE CANVAS FIXÉ POUR LE DROP */}
           <div 
             style={{ 
               width: `${guiConfig.bgWidth}px`, 
@@ -522,6 +518,8 @@ export default function App() {
               transform: 'translate(-50%, -50%)',
             }}
             className="bg-zinc-800 border-2 border-zinc-700 shadow-[0_0_50px_rgba(0,0,0,0.5)] overflow-visible"
+            onDragOver={(e) => e.preventDefault()} 
+            onDrop={(e) => handleCanvasDrop(e, null)}
           >
             {guiConfig.backgroundType === "CUSTOM" && (() => {
               const bgAsset = loadedAssets.find(a => a.minecraftPath === guiConfig.customTexture);
