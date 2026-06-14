@@ -1,4 +1,3 @@
-// --- SCRIPT DE GÉNÉRATION DU CONTAINER MENU (SERVEUR) ---
 const generateMenuCode = (guiConfig, slots) => {
   let slotRegistrations = [];
   
@@ -31,7 +30,7 @@ public class ${guiConfig.className}Menu extends AbstractContainerMenu {
     }
 
     public ${guiConfig.className}Menu(int containerId, Inventory playerInventory, Container container) {
-        super(null, containerId); // Needs RegistryObject type replacement
+        super(null, containerId); // Link this constructor to your MenuType Registry Object
         this.container = container;
         checkContainerSize(container, ${slots.length});
         container.startOpen(playerInventory.player);
@@ -64,7 +63,6 @@ ${slotRegistrations.join('\n')}
 }`;
 };
 
-// --- MÉTHODE DE GÉNÉRATION PRINCIPALE (SCREEN ET DISTRIBUTEUR COUPLÉ) ---
 export const generateJavaCode = (guiConfig, components) => {
   const slots = components.filter(c => c.type.includes('Slot'));
   const hasSlots = slots.length > 0;
@@ -81,7 +79,7 @@ export const generateJavaCode = (guiConfig, components) => {
   } else if (guiConfig.backgroundType === "CONTAINER") {
       renderBgCode.push(`        guiGraphics.blit(net.minecraft.resources.ResourceLocation.withDefaultNamespace("textures/gui/container/dispenser.png"), this.leftPos, this.topPos, 0, 0, 176, 166);`);
   } else if (guiConfig.backgroundType === "CUSTOM") {
-      renderBgCode.push(`        guiGraphics.blit(net.minecraft.resources.ResourceLocation.parse("${guiConfig.customTexture}"), this.leftPos, this.topPos, 0, 0, ${guiConfig.bgWidth}, ${guiConfig.bgHeight});`);
+      renderBgCode.push(`        guiGraphics.blit(net.minecraft.resources.ResourceLocation.parse("${guiConfig.customTexture || 'ponder:textures/gui/bg.png'}"), this.leftPos, this.topPos, 0, 0, ${guiConfig.bgWidth}, ${guiConfig.bgHeight});`);
   }
 
   components.forEach(comp => {
@@ -100,12 +98,12 @@ export const generateJavaCode = (guiConfig, components) => {
 
       case 'Slider':
         fields.push(`    private net.minecraft.client.gui.components.AbstractSliderButton ${comp.id};`);
-        initCode.push(`        // Slider Button: ${comp.id}\n        this.${comp.id} = new net.minecraft.client.gui.components.AbstractSliderButton(${posX}, ${posY}, ${comp.width}, ${comp.height}, Component.literal("${comp.text}"), ${comp.currentVal / comp.maxVal}) {\n            @Override protected void updateMessage() { this.setMessage(Component.literal("${comp.text}: " + (this.value * ${comp.maxVal}))); }\n            @Override protected void applyValue() { /* Bounds: ${comp.minVal} to ${comp.maxVal} */ }\n        };\n        this.addRenderableWidget(this.${comp.id});`);
+        initCode.push(`        // Slider Button: ${comp.id}\n        this.${comp.id} = new net.minecraft.client.gui.components.AbstractSliderButton(${posX}, ${posY}, ${comp.width}, ${comp.height}, Component.literal("${comp.text}"), ${comp.currentVal / comp.maxVal}) {\n            @Override protected void updateMessage() { this.setMessage(Component.literal("${comp.text}: " + (this.value * ${comp.maxVal}))); }\n            @Override protected void applyValue() { /* Tracking slider code */ }\n        };\n        this.addRenderableWidget(this.${comp.id});`);
         break;
 
       case 'ImageButton':
         fields.push(`    private ImageButton ${comp.id};`);
-        initCode.push(`        // Image Button: ${comp.id}\n        this.${comp.id} = new ImageButton(${posX}, ${posY}, ${comp.width}, ${comp.height}, new net.minecraft.client.gui.components.WidgetSprites(net.minecraft.resources.ResourceLocation.parse("${comp.texture}")), button -> {\n            // Click Action\n        });\n        this.addRenderableWidget(this.${comp.id});`);
+        initCode.push(`        // Image Button: ${comp.id}\n        this.${comp.id} = new ImageButton(${posX}, ${posY}, ${comp.width}, ${comp.height}, new net.minecraft.client.gui.components.WidgetSprites(net.minecraft.resources.ResourceLocation.parse("${comp.texture || 'ponder:textures/gui/widgets.png'}")), button -> {\n            // Click Action\n        });\n        this.addRenderableWidget(this.${comp.id});`);
         break;
 
       case 'Image':
@@ -119,11 +117,13 @@ export const generateJavaCode = (guiConfig, components) => {
 
       case 'InputSlot':
       case 'OutputSlot':
-        initCode.push(`        // Slot: ${comp.id} is managed via ${menuClassName} at relative X: ${comp.x}, Y: ${comp.y}`);
+        initCode.push(`        // Slot: ${comp.id} handled via ${menuClassName} at relative X: ${comp.x}, Y: ${comp.y}`);
         break;
 
       case 'ScrollPanel':
-        initCode.push(`        // ScrollPanel: ${comp.id} Layout (W: ${comp.width}, H: ${comp.height})`);
+        const sx = comp.scrollX || false;
+        const sy = comp.scrollY !== false;
+        initCode.push(`        // ScrollPanel: ${comp.id} Layout (W: ${comp.width}, H: ${comp.height}) -> V_Scroll: ${sy}, H_Scroll: ${sx}, MaxContentSize: ${comp.maxScrollDistance}px`);
         break;
     }
   });
