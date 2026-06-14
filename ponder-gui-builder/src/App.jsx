@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import PropertiesInspector from './components/PropertiesInspector';
 import { generateJavaCode } from './utils/javaGenerator';
 import { serializeProjectJson, triggerDownload } from './utils/jsonGenerator';
@@ -18,7 +18,7 @@ export default function App() {
     modId: "pondertestgui",
     className: "MyCustomScreen",
     guiTitle: "Ponder Custom Menu",
-    backgroundType: "CONTAINER", 
+    backgroundType: "CUSTOM", // FORCÉ EN CUSTOM PAR DÉFAUT
     customTexture: "",
     bgWidth: 176,
     bgHeight: 166,
@@ -27,6 +27,12 @@ export default function App() {
   });
 
   const fileInputRef = useRef(null);
+  
+  const [scale, setScale] = useState(1);
+  const [pan, setPan] = useState({ x: 0, y: 0 });
+  const [isPanning, setIsPanning] = useState(false);
+  const panStartRef = useRef({ x: 0, y: 0 });
+  const workspaceRef = useRef(null);
 
   const tools = [
     { type: 'Label', label: 'Text (Label)', defaultWidth: 100, defaultHeight: 20 },
@@ -34,6 +40,7 @@ export default function App() {
     { type: 'ImageButton', label: 'Image Button', defaultWidth: 20, defaultHeight: 20 },
     { type: 'Image', label: 'Static Image', defaultWidth: 50, defaultHeight: 50 },
     { type: 'Slider', label: 'Slider Button', defaultWidth: 150, defaultHeight: 20 },
+    { type: 'ProgressBar', label: 'Progress Bar', defaultWidth: 100, defaultHeight: 10 },
     { type: 'EditBox', label: 'Input Field', defaultWidth: 150, defaultHeight: 20 },
     { type: 'InputSlot', label: 'Input Slot (18x18)', defaultWidth: 18, defaultHeight: 18 },
     { type: 'OutputSlot', label: 'Output Slot (26x26)', defaultWidth: 26, defaultHeight: 26 },
@@ -73,19 +80,23 @@ export default function App() {
   };
 
   const handleComponentMouseDown = (e, comp) => {
-    if (e.button !== 0) return; 
+    if (e.button !== 0 || isPanning) return;
     e.stopPropagation();
     setDraggingId(comp.id);
-    setDragOffset({ x: e.clientX - comp.x, y: e.clientY - comp.y });
+    
+    const rect = e.currentTarget.getBoundingClientRect();
+    const mouseX = (e.clientX - rect.left) / scale;
+    const mouseY = (e.clientY - rect.top) / scale;
+    setDragOffset({ x: mouseX, y: mouseY });
   };
 
   const handleResizeMouseDown = (e, comp) => {
-    if (e.button !== 0) return;
+    if (e.button !== 0 || isPanning) return;
     if (comp.type === 'PlayerInventory') return; 
     e.stopPropagation();
     e.preventDefault();
     setResizingId(comp.id);
-    setDragOffset({ x: e.clientX, y: e.clientY });
+    setDragOffset({ x: e.clientX, y: e.clientY }); 
     setInitialSize({ width: comp.width, height: comp.height });
   };
 
@@ -95,12 +106,25 @@ export default function App() {
   };
 
   const handleCanvasMouseMove = (e) => {
+    if (isPanning) {
+      setPan({
+        x: e.clientX - panStartRef.current.x,
+        y: e.clientY - panStartRef.current.y
+      });
+      return;
+    }
+
     if (resizingId) {
-      const deltaX = e.clientX - dragOffset.x;
-      const deltaY = e.clientY - dragOffset.y;
+      const deltaX = (e.clientX - dragOffset.x) / scale;
+      const deltaY = (e.clientY - dragOffset.y) / scale;
+      
       setComponents(components.map(comp => {
         if (comp.id === resizingId) {
-          return { ...comp, width: Math.max(10, Math.round(initialSize.width + deltaX)), height: Math.max(10, Math.round(initialSize.height + deltaY)) };
+          return { 
+            ...comp, 
+            width: Math.max(10, Math.round(initialSize.width + deltaX)), 
+            height: Math.max(10, Math.round(initialSize.height + deltaY)) 
+          };
         }
         return comp;
       }));
@@ -108,9 +132,14 @@ export default function App() {
     }
 
     if (!draggingId) return;
-    const rect = e.currentTarget.getBoundingClientRect();
-    let newX = e.clientX - dragOffset.x;
-    let newY = e.clientY - dragOffset.y;
+    
+    const targetElement = e.currentTarget; 
+    const rect = targetElement.getBoundingClientRect();
+    const mouseX = (e.clientX - rect.left) / scale;
+    const mouseY = (e.clientY - rect.top) / scale;
+
+    let newX = mouseX - dragOffset.x;
+    let newY = mouseY - dragOffset.y;
 
     setComponents(components.map(comp => {
       if (comp.id === draggingId) {
@@ -131,7 +160,41 @@ export default function App() {
   const handleCanvasMouseUp = () => {
     setDraggingId(null);
     setResizingId(null);
+    setIsPanning(false);
   };
+
+  const handleWorkspaceMouseDown = (e) => {
+    if (e.button === 1 || e.button === 2 || (e.button === 0 && e.altKey)) {
+      e.preventDefault();
+      setIsPanning(true);
+      panStartRef.current = { x: e.clientX - pan.x, y: e.clientY - pan.y };
+    } else {
+      setSelectedId(null); 
+    }
+  };
+
+  const handleWorkspaceWheel = (e) => {
+    if (e.ctrlKey || e.metaKey) {
+      e.preventDefault();
+      const zoomSensitivity = 0.001;
+      const delta = -e.deltaY * zoomSensitivity;
+      const newScale = Math.max(0.2, Math.min(scale + delta, 5)); 
+      setScale(newScale);
+    }
+  };
+  
+  useEffect(() => {
+    const workspace = workspaceRef.current;
+    if (workspace) {
+      const preventDefaultWheel = (e) => {
+        if (e.ctrlKey || e.metaKey) {
+          e.preventDefault();
+        }
+      };
+      workspace.addEventListener('wheel', preventDefaultWheel, { passive: false });
+      return () => workspace.removeEventListener('wheel', preventDefaultWheel);
+    }
+  }, []);
 
   const handleCanvasDrop = (e, targetPanelId = null) => {
     e.preventDefault();
@@ -144,8 +207,12 @@ export default function App() {
 
     const compWidth = parseInt(e.dataTransfer.getData('defaultWidth'), 10);
     const compHeight = parseInt(e.dataTransfer.getData('defaultHeight'), 10);
-    let dropX = Math.round(e.clientX - rect.left);
-    let dropY = Math.round(e.clientY - rect.top);
+    
+    let dropX = Math.round((e.clientX - rect.left) / scale);
+    let dropY = Math.round((e.clientY - rect.top) / scale);
+
+    dropX -= Math.round(compWidth / 2);
+    dropY -= Math.round(compHeight / 2);
 
     if (!targetPanelId) {
       dropX = Math.max(0, Math.min(dropX, guiConfig.bgWidth - compWidth));
@@ -161,7 +228,8 @@ export default function App() {
       height: compHeight,
       text: type === 'Label' || type === 'Button' || type === 'Slider' ? `My ${type}` : '',
       placeholder: type === 'EditBox' ? 'Type here...' : '',
-      color: '0xFFFFFF',
+      color: type === 'ProgressBar' ? '0xFF10B981' : '0xFFFFFF',
+      bgColor: type === 'ProgressBar' ? '0xFF3F3F46' : '',
       texture: '',
       parentId: targetPanelId,
       scrollX: false,
@@ -169,13 +237,36 @@ export default function App() {
       maxScrollDistance: 600,
       minVal: 0,
       maxVal: 100,
-      currentVal: 50
+      currentVal: 50,
+      useCustomTextures: false,
+      sliderTrackTex: '',
+      sliderThumbTex: '',
+      sliderThumbWidth: 8
     };
     setComponents([...components, newComponent]);
   };
 
   const updateSelectedComponent = (property, value) => {
-    setComponents(components.map(comp => comp.id === selectedId ? { ...comp, [property]: value } : comp));
+    setComponents(prevComponents => 
+      prevComponents.map(comp => {
+        if (comp.id === selectedId) {
+          const updated = { ...comp, [property]: value };
+          
+          if (property === 'scrollX' && value === true) {
+            updated.scrollY = false;
+            updated.vTrackTex = '';
+            updated.vThumbTex = '';
+          } else if (property === 'scrollY' && value === true) {
+            updated.scrollX = false;
+            updated.hTrackTex = '';
+            updated.hThumbTex = '';
+          }
+          
+          return updated;
+        }
+        return comp;
+      })
+    );
   };
 
   const handleDeleteComponent = () => {
@@ -207,7 +298,8 @@ export default function App() {
       try {
         const parsed = JSON.parse(event.target.result);
         if (parsed.guiConfig && parsed.components) {
-          setGuiConfig(parsed.guiConfig); setComponents(parsed.components); setSelectedId(null);
+          setGuiConfig({ ...parsed.guiConfig, backgroundType: "CUSTOM" }); // Force le CUSTOM à l'importation par sécurité
+          setComponents(parsed.components); setSelectedId(null);
         }
       } catch (err) { alert("Error reading JSON file."); }
     };
@@ -236,7 +328,7 @@ export default function App() {
             ${isSelected ? 'border-emerald-400 ring-2 ring-emerald-500/20' : 'border-zinc-700'}
             ${!associatedAsset ? 'bg-zinc-900/90' : ''}`}
         >
-          <div className="flex flex-col gap-0.5 relative z-10">
+          <div className="flex flex-col gap-0.5 relative z-10 pointer-events-none">
             {[0, 1, 2].map((row) => (
               <div key={row} className="flex gap-0.5">
                 {Array.from({ length: 9 }).map((_, col) => (
@@ -248,7 +340,7 @@ export default function App() {
             ))}
           </div>
           <div className={`h-1 ${!associatedAsset ? 'border-t border-dashed border-zinc-800' : ''}`} />
-          <div className="flex gap-0.5 relative z-10">
+          <div className="flex gap-0.5 relative z-10 pointer-events-none">
             {Array.from({ length: 9 }).map((_, col) => (
               <div key={col} className={`w-[16px] h-[16px] border flex items-center justify-center text-[7px] text-amber-500/70 font-mono font-bold ${!associatedAsset ? 'bg-zinc-950 border-zinc-700' : 'border-black/10 bg-black/5'}`}>
                 {col}
@@ -273,10 +365,11 @@ export default function App() {
           backgroundImage: associatedAsset ? `url(${associatedAsset.localUrl})` : 'none',
           backgroundSize: '100% 100%', backgroundRepeat: 'no-repeat', imageRendering: 'pixelated'
         }}
-        className={`flex items-center justify-center text-[10px] border rounded font-sans group
+        className={`flex items-center justify-center text-[10px] border rounded font-sans group relative overflow-hidden
           ${isSelected ? 'border-emerald-400 ring-2 ring-emerald-500/20 bg-emerald-950/10' : 'border-zinc-700'}
           ${comp.type === 'Button' ? 'bg-zinc-700 text-zinc-200 border-zinc-500' : ''}
           ${comp.type === 'Slider' ? 'bg-zinc-600 text-zinc-100 border-zinc-400 font-medium' : ''}
+          ${comp.type === 'ProgressBar' ? 'bg-zinc-800 border-zinc-600' : ''}
           ${comp.type === 'ImageButton' && !associatedAsset ? 'bg-amber-900/30 text-amber-300 border-amber-600' : ''}
           ${comp.type === 'Image' && !associatedAsset ? 'bg-purple-950/40 text-purple-300 border-purple-600 border-dashed font-mono' : ''}
           ${comp.type === 'EditBox' ? 'bg-zinc-950 text-zinc-400 border-zinc-800 px-2' : ''}
@@ -285,14 +378,26 @@ export default function App() {
           ${comp.type === 'Label' ? 'text-white font-semibold' : ''}
         `}
       >
-        {comp.type === 'Button' && comp.text}
-        {comp.type === 'Slider' && `${comp.text} [${comp.currentVal}]`}
-        {comp.type === 'ImageButton' && !associatedAsset && "IMG BTN"}
-        {comp.type === 'Image' && !associatedAsset && "IMAGE"}
-        {comp.type === 'Label' && comp.text}
-        {comp.type === 'EditBox' && (comp.placeholder || 'Text field')}
-        {comp.type === 'InputSlot' && "IN"}
-        {comp.type === 'OutputSlot' && "OUT"}
+        <span className="relative z-10 pointer-events-none">
+          {comp.type === 'Button' && comp.text}
+          {comp.type === 'Slider' && `${comp.text} [${comp.currentVal}]`}
+          {comp.type === 'ImageButton' && !associatedAsset && "IMG BTN"}
+          {comp.type === 'Image' && !associatedAsset && "IMAGE"}
+          {comp.type === 'Label' && comp.text}
+          {comp.type === 'EditBox' && (comp.placeholder || 'Text field')}
+          {comp.type === 'InputSlot' && "IN"}
+          {comp.type === 'OutputSlot' && "OUT"}
+        </span>
+        
+        {comp.type === 'ProgressBar' && (
+          <div 
+            className="absolute top-0 left-0 h-full transition-all duration-200 pointer-events-none" 
+            style={{ 
+              width: `${Math.max(0, Math.min(100, ((comp.currentVal - comp.minVal) / (comp.maxVal - comp.minVal)) * 100))}%`,
+              backgroundColor: comp.color ? comp.color.replace('0xFF', '#') : '#10b981'
+            }} 
+          />
+        )}
 
         <div
           onMouseDown={(e) => handleResizeMouseDown(e, comp)}
@@ -309,20 +414,14 @@ export default function App() {
     >
       
       {/* 1. LEFT PANEL */}
-      <div style={{ width: '16rem' }} className="bg-zinc-800 p-4 border-r border-zinc-700 flex flex-col gap-4 overflow-hidden flex-shrink-0">
+      <div style={{ width: '16rem', zIndex: 50 }} className="bg-zinc-800 p-4 border-r border-zinc-700 flex flex-col gap-4 overflow-hidden flex-shrink-0 relative">
         <h2 className="text-xl font-bold text-emerald-400 flex-shrink-0">Ponder GUI</h2>
         
-        {/* BLOC CONFIG */}
         <div className="flex flex-col gap-2 bg-zinc-900 p-3 rounded border border-zinc-700 flex-shrink-0">
           <span className="text-xs font-semibold text-zinc-400 uppercase">Class Configuration</span>
           
           <label className="text-xs">Mod ID:</label>
-          <input 
-            type="text" 
-            value={guiConfig.modId} 
-            onChange={e => setGuiConfig({...guiConfig, modId: e.target.value})} 
-            className="bg-zinc-950 p-1 rounded border border-zinc-700 text-sm text-amber-400 w-full outline-none font-mono"
-          />
+          <input type="text" value={guiConfig.modId} onChange={e => setGuiConfig({...guiConfig, modId: e.target.value})} className="bg-zinc-950 p-1 rounded border border-zinc-700 text-sm text-amber-400 w-full outline-none font-mono" />
 
           <label className="text-xs">Class Name:</label>
           <input type="text" value={guiConfig.className} onChange={e => setGuiConfig({...guiConfig, className: e.target.value})} className="bg-zinc-950 p-1 rounded border border-zinc-700 text-sm text-emerald-300 w-full outline-none"/>
@@ -342,7 +441,6 @@ export default function App() {
           </div>
         </div>
 
-        {/* ASSET MANAGER */}
         <div className="flex flex-col gap-2 bg-zinc-900 p-3 rounded border border-zinc-700 flex-shrink-0">
           <span className="text-xs font-semibold text-zinc-400 uppercase">Asset Manager</span>
           <label className="bg-zinc-700 hover:bg-zinc-600 text-white font-medium py-1.5 px-2 rounded text-xs text-center cursor-pointer transition w-full">
@@ -352,7 +450,6 @@ export default function App() {
           {loadedAssets.length > 0 && <span className="text-[10px] text-emerald-400 font-mono text-center">{loadedAssets.length} textures linked</span>}
         </div>
 
-        {/* BLOC COMPONENTS SCROLLABLE */}
         <div className="flex-1 flex flex-col gap-2 min-h-0">
           <span className="text-xs font-semibold text-zinc-400 uppercase flex-shrink-0">Components</span>
           <div className="flex-1 overflow-y-auto pr-1 flex flex-col gap-2 custom-scrollbar">
@@ -364,7 +461,6 @@ export default function App() {
           </div>
         </div>
 
-        {/* FOOTER */}
         <div className="flex flex-col gap-1.5 pt-4 border-t border-zinc-700 flex-shrink-0">
           <button onClick={handleDownloadJava} className="bg-emerald-600 hover:bg-emerald-500 font-bold py-2 px-3 rounded text-xs transition w-full">Export NeoForge (.java)</button>
           <div className="grid grid-cols-2 gap-1.5">
@@ -375,72 +471,106 @@ export default function App() {
         </div>
       </div>
 
-      {/* 2. THE CANVAS */}
-      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }} className="bg-zinc-950 p-4 overflow-hidden" onClick={() => setSelectedId(null)}>
-        <div className="mb-3 text-xs text-zinc-400 bg-zinc-900/80 px-3 py-1 rounded-full border border-zinc-800 backdrop-blur-sm pointer-events-none">
-          Left click: Move | Hover corners: Resize | Right click: Edit
+      {/* 2. THE WORKSPACE CANVAS (Area that handles zoom and pan) */}
+      <div 
+        ref={workspaceRef}
+        style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', position: 'relative' }} 
+        className="bg-zinc-950 select-none"
+        onMouseDown={handleWorkspaceMouseDown}
+        onMouseMove={handleCanvasMouseMove}
+        onMouseUp={handleCanvasMouseUp}
+        onMouseLeave={handleCanvasMouseUp}
+        onWheel={handleWorkspaceWheel}
+        onDragOver={(e) => e.preventDefault()} 
+        onDrop={(e) => handleCanvasDrop(e, null)}
+      >
+        <div className="absolute top-4 right-4 z-50 flex flex-col gap-1">
+          <div className="flex items-center gap-1 bg-zinc-800/80 backdrop-blur border border-zinc-700 p-1 rounded shadow-lg">
+            <button onClick={() => setScale(s => Math.max(0.2, s - 0.2))} className="w-6 h-6 flex items-center justify-center hover:bg-zinc-600 rounded text-zinc-300 font-bold">-</button>
+            <span className="text-[10px] w-12 text-center font-mono text-zinc-300">{Math.round(scale * 100)}%</span>
+            <button onClick={() => setScale(s => Math.min(5, s + 0.2))} className="w-6 h-6 flex items-center justify-center hover:bg-zinc-600 rounded text-zinc-300 font-bold">+</button>
+            <button onClick={() => { setScale(1); setPan({x:0, y:0}); }} className="px-2 h-6 flex items-center justify-center hover:bg-zinc-600 rounded text-[10px] text-zinc-300 border-l border-zinc-700 ml-1">Reset</button>
+          </div>
+        </div>
+
+        <div className="absolute bottom-4 left-4 text-xs text-zinc-400 bg-zinc-900/80 px-3 py-1.5 rounded-md border border-zinc-800 backdrop-blur-sm pointer-events-none z-50 shadow-lg leading-tight">
+          <span className="font-bold text-zinc-300">Controls:</span><br/>
+          • Drag & Drop to add items<br/>
+          • Right-Click to inspect properties<br/>
+          • Ctrl + Scroll to Zoom In/Out<br/>
+          • Middle Click (or Alt+Click) to Pan
         </div>
         
         <div 
-          onDragOver={(e) => e.preventDefault()} 
-          onDrop={(e) => handleCanvasDrop(e, null)} 
-          onMouseMove={handleCanvasMouseMove} 
-          onMouseUp={handleCanvasMouseUp} 
-          onMouseLeave={handleCanvasMouseUp}
           style={{ 
-            width: `${guiConfig.bgWidth}px`, 
-            height: `${guiConfig.bgHeight}px`,
+            transform: `translate(${pan.x}px, ${pan.y}px) scale(${scale})`,
+            transformOrigin: '0 0', 
+            width: '100%', 
+            height: '100%',
+            position: 'absolute',
+            top: 0,
+            left: 0
           }}
-          className="relative bg-zinc-800 border border-zinc-700 shadow-2xl overflow-visible flex-shrink-0 transition-all duration-150"
         >
-          {/* Rendu visuel de la texture si elle existe, sinon fond gris standard de conteneur */}
-          {guiConfig.backgroundType === "CUSTOM" && (() => {
-            const bgAsset = loadedAssets.find(a => a.minecraftPath === guiConfig.customTexture);
-            return bgAsset ? (
-              <div 
-                style={{ 
-                  position: 'absolute', top: 0, left: 0, width: '100%', height: '100%',
-                  backgroundImage: `url(${bgAsset.localUrl})`,
-                  backgroundSize: '100% 100%', backgroundRepeat: 'no-repeat', imageRendering: 'pixelated'
-                }} 
-                className="pointer-events-none"
-              />
-            ) : null;
-          })()}
+          <div 
+            style={{ 
+              width: `${guiConfig.bgWidth}px`, 
+              height: `${guiConfig.bgHeight}px`,
+              position: 'absolute',
+              left: '50%',
+              top: '50%',
+              transform: 'translate(-50%, -50%)',
+            }}
+            className="bg-zinc-800 border-2 border-zinc-700 shadow-[0_0_50px_rgba(0,0,0,0.5)] overflow-visible"
+          >
+            {guiConfig.backgroundType === "CUSTOM" && (() => {
+              const bgAsset = loadedAssets.find(a => a.minecraftPath === guiConfig.customTexture);
+              return bgAsset ? (
+                <div 
+                  style={{ 
+                    position: 'absolute', top: 0, left: 0, width: '100%', height: '100%',
+                    backgroundImage: `url(${bgAsset.localUrl})`,
+                    backgroundSize: '100% 100%', backgroundRepeat: 'no-repeat', imageRendering: 'pixelated'
+                  }} 
+                  className="pointer-events-none"
+                />
+              ) : null;
+            })()}
 
-          {/* Repère visuel temporaire du point 0,0 */}
-          <div className="absolute top-0 left-0 w-2 h-2 border-l-2 border-t-2 border-red-500 z-50 pointer-events-none" title="Point 0,0" />
+            <div className="absolute top-0 left-0 w-2 h-2 border-l-2 border-t-2 border-red-500 z-50 pointer-events-none" title="Point 0,0" />
 
-          {/* Rendu des composants enfants direct */}
-          {rootComponents.map((comp) => {
-            if (comp.type === 'ScrollPanel') {
-              const children = components.filter(c => c.parentId === comp.id);
-              return (
-                <div
-                  key={comp.id} onMouseDown={(e) => handleComponentMouseDown(e, comp)} onContextMenu={(e) => handleComponentContextMenu(e, comp)} onDragOver={(e) => e.preventDefault()} onDrop={(e) => handleCanvasDrop(e, comp.id)}
-                  style={{ position: 'absolute', left: `${comp.x}px`, top: `${comp.y}px`, width: `${comp.width}px`, height: `${comp.height}px` }}
-                  className={`border rounded flex flex-col bg-slate-900/40 border-blue-500/50 overflow-hidden group ${selectedId === comp.id ? 'ring-2 ring-emerald-500/30 border-emerald-400' : ''}`}
-                >
-                  <div className="bg-blue-950/60 text-blue-400 text-[9px] px-1.5 py-0.5 font-semibold border-b border-blue-900 pointer-events-none">Scroll Panel</div>
-                  <div className={`flex-1 relative p-1 custom-scrollbar ${comp.scrollY !== false ? 'overflow-y-auto' : 'overflow-y-hidden'} ${comp.scrollX ? 'overflow-x-auto' : 'overflow-x-hidden'}`}>
-                    <div style={{ width: comp.scrollX ? `${comp.maxScrollDistance || 1000}px` : '100%', height: comp.scrollY !== false ? `${comp.maxScrollDistance || 600}px` : '100%' }} className="relative">
-                      {children.map((child) => renderComponentElement(child))}
+            {rootComponents.map((comp) => {
+              if (comp.type === 'ScrollPanel') {
+                const children = components.filter(c => c.parentId === comp.id);
+                return (
+                  <div
+                    key={comp.id} onMouseDown={(e) => handleComponentMouseDown(e, comp)} onContextMenu={(e) => handleComponentContextMenu(e, comp)} onDragOver={(e) => e.preventDefault()} onDrop={(e) => handleCanvasDrop(e, comp.id)}
+                    style={{ position: 'absolute', left: `${comp.x}px`, top: `${comp.y}px`, width: `${comp.width}px`, height: `${comp.height}px` }}
+                    className={`border rounded flex flex-col bg-slate-900/40 border-blue-500/50 overflow-hidden group ${selectedId === comp.id ? 'ring-2 ring-emerald-500/30 border-emerald-400' : ''}`}
+                  >
+                    <div className="bg-blue-950/60 text-blue-400 text-[9px] px-1.5 py-0.5 font-semibold border-b border-blue-900 pointer-events-none">Scroll Panel</div>
+                    <div className={`flex-1 relative p-1 custom-scrollbar ${comp.scrollY !== false ? 'overflow-y-auto' : 'overflow-y-hidden'} ${comp.scrollX ? 'overflow-x-auto' : 'overflow-x-hidden'}`}>
+                      <div style={{ width: comp.scrollX ? `${comp.maxScrollDistance || 1000}px` : '100%', height: comp.scrollY !== false ? `${comp.maxScrollDistance || 600}px` : '100%' }} className="relative">
+                        {children.map((child) => renderComponentElement(child))}
+                      </div>
                     </div>
+                    <div onMouseDown={(e) => handleResizeMouseDown(e, comp)} className="absolute bottom-0 right-0 w-3 h-3 bg-emerald-500 rounded-tl cursor-nwse-resize opacity-0 group-hover:opacity-100 transition-opacity z-50" />
                   </div>
-                  <div onMouseDown={(e) => handleResizeMouseDown(e, comp)} className="absolute bottom-0 right-0 w-3 h-3 bg-emerald-500 rounded-tl cursor-nwse-resize opacity-0 group-hover:opacity-100 transition-opacity z-50" />
-                </div>
-              );
-            }
-            return renderComponentElement(comp);
-          })}
+                );
+              }
+              return renderComponentElement(comp);
+            })}
+          </div>
         </div>
       </div>
 
       {/* 3. PROPERTIES INSPECTOR */}
-      <PropertiesInspector 
-        selectedComponent={selectedComponent} updateSelectedComponent={updateSelectedComponent} onDelete={handleDeleteComponent} 
-        loadedAssets={loadedAssets} guiConfig={guiConfig} setGuiConfig={setGuiConfig}
-      />
+      <div className="z-50 relative">
+        <PropertiesInspector 
+          selectedComponent={selectedComponent} updateSelectedComponent={updateSelectedComponent} onDelete={handleDeleteComponent} 
+          loadedAssets={loadedAssets} guiConfig={guiConfig} setGuiConfig={setGuiConfig}
+        />
+      </div>
 
     </div>
   );

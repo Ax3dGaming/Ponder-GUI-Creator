@@ -1,4 +1,5 @@
 import React from 'react';
+import { generateScrollPanelWidgetCode } from '../utils/scrollPanelGenerator';
 
 export default function PropertiesInspector({ 
   selectedComponent, 
@@ -13,66 +14,54 @@ export default function PropertiesInspector({
       <h3 className="text-md font-bold text-zinc-300">Properties</h3>
       
       {/* ========================================================= */}
-      {/* SECTION CONFIGURATION DU SCREEN GLOBAL                    */}
+      {/* SECTION CONFIGURATION DU SCREEN GLOBAL (NETTOYÉE)         */}
       {/* ========================================================= */}
       <div className="flex flex-col gap-2 bg-zinc-900 p-3 rounded border border-zinc-700">
-        <span className="text-xs font-semibold text-zinc-400 uppercase">Screen Background</span>
-        <select 
-          value={guiConfig.backgroundType} 
-          onChange={e => setGuiConfig({...guiConfig, backgroundType: e.target.value})} 
-          className="bg-zinc-950 p-1.5 rounded border border-zinc-700 text-sm w-full outline-none"
-        >
-          <option value="VANILLA_DARK">Vanilla Dark Background</option>
-          <option value="CONTAINER">Standard Container</option>
-          <option value="CUSTOM">Custom Texture Asset</option>
-        </select>
-
-        {guiConfig.backgroundType === "CUSTOM" && (
-          <div className="flex flex-col gap-1.5 mt-2 pt-2 border-t border-zinc-800">
-            <label className="text-xs text-zinc-400">Background Texture</label>
-            {loadedAssets.length > 0 ? (
-              <select
-                value={guiConfig.customTexture || ''}
-                onChange={(e) => setGuiConfig({...guiConfig, customTexture: e.target.value})}
-                className="w-full bg-zinc-950 p-1.5 rounded border border-zinc-700 text-xs outline-none font-mono text-emerald-300"
-              >
-                <option value="">-- Select background --</option>
-                {loadedAssets.map(asset => (
-                  <option key={asset.minecraftPath} value={asset.minecraftPath}>{asset.minecraftPath}</option>
-                ))}
-              </select>
-            ) : (
+        <span className="text-xs font-semibold text-zinc-400 uppercase">Screen Background Texture</span>
+        
+        <div className="flex flex-col gap-1.5 mt-1">
+          {loadedAssets.length > 0 ? (
+            <select
+              value={guiConfig.customTexture || ''}
+              onChange={(e) => setGuiConfig({...guiConfig, customTexture: e.target.value})}
+              className="w-full bg-zinc-950 p-1.5 rounded border border-zinc-700 text-xs outline-none font-mono text-emerald-300"
+            >
+              <option value="">-- Select background --</option>
+              {loadedAssets.map(asset => (
+                <option key={asset.minecraftPath} value={asset.minecraftPath}>{asset.minecraftPath}</option>
+              ))}
+            </select>
+          ) : (
+            <input 
+              type="text" 
+              value={guiConfig.customTexture || ''} 
+              onChange={(e) => setGuiConfig({...guiConfig, customTexture: e.target.value})} 
+              className="w-full bg-zinc-950 p-1.5 rounded border border-zinc-700 text-xs outline-none font-mono text-zinc-400" 
+              placeholder="modid:textures/gui/bg.png"
+            />
+          )}
+          
+          <div className="grid grid-cols-2 gap-2 mt-2 border-t border-zinc-800 pt-2">
+            <div>
+              <label className="text-[10px] text-zinc-400">File Width (px):</label>
               <input 
-                type="text" 
-                value={guiConfig.customTexture || ''} 
-                onChange={(e) => setGuiConfig({...guiConfig, customTexture: e.target.value})} 
-                className="w-full bg-zinc-950 p-1.5 rounded border border-zinc-700 text-xs outline-none font-mono text-zinc-400" 
-                placeholder="ponder:textures/gui/bg.png"
+                type="number" 
+                value={guiConfig.textureWidth || 256} 
+                onChange={e => setGuiConfig({...guiConfig, textureWidth: parseInt(e.target.value, 10) || 256})} 
+                className="w-full bg-zinc-950 p-1 rounded border border-zinc-700 text-xs text-center font-mono outline-none text-amber-400" 
               />
-            )}
-            
-            <div className="grid grid-cols-2 gap-2 mt-2">
-              <div>
-                <label className="text-[10px] text-zinc-400">File Texture Width:</label>
-                <input 
-                  type="number" 
-                  value={guiConfig.textureWidth || 256} 
-                  onChange={e => setGuiConfig({...guiConfig, textureWidth: parseInt(e.target.value, 10) || 256})} 
-                  className="w-full bg-zinc-950 p-1 rounded border border-zinc-700 text-xs text-center font-mono outline-none text-amber-400" 
-                />
-              </div>
-              <div>
-                <label className="text-[10px] text-zinc-400">File Texture Height:</label>
-                <input 
-                  type="number" 
-                  value={guiConfig.textureHeight || 256} 
-                  onChange={e => setGuiConfig({...guiConfig, textureHeight: parseInt(e.target.value, 10) || 256})} 
-                  className="w-full bg-zinc-950 p-1 rounded border border-zinc-700 text-xs text-center font-mono outline-none text-amber-400" 
-                />
-              </div>
+            </div>
+            <div>
+              <label className="text-[10px] text-zinc-400">File Height (px):</label>
+              <input 
+                type="number" 
+                value={guiConfig.textureHeight || 256} 
+                onChange={e => setGuiConfig({...guiConfig, textureHeight: parseInt(e.target.value, 10) || 256})} 
+                className="w-full bg-zinc-950 p-1 rounded border border-zinc-700 text-xs text-center font-mono outline-none text-amber-400" 
+              />
             </div>
           </div>
-        )}
+        </div>
       </div>
 
       {/* ========================================================= */}
@@ -90,7 +79,6 @@ export default function PropertiesInspector({
             <div className="text-xs text-emerald-400 bg-zinc-900 p-2 rounded mt-1 select-all font-mono break-all">{selectedComponent.id}</div>
           </div>
 
-          {/* PROPRIÉTÉ TEXTE : COMMUNE AUX BOUTONS ET AUX LABELS */}
           {(selectedComponent.type === 'Button' || selectedComponent.type === 'Label') && (
             <div>
               <label className="text-xs text-zinc-400">Display Text</label>
@@ -103,7 +91,6 @@ export default function PropertiesInspector({
             </div>
           )}
 
-          {/* PROPRIÉTÉ TEXTURE : COMMUNE AUX IMAGEBUTTONS, IMAGES STATIQUES ET L'INVENTAIRE JOUEUR */}
           {(selectedComponent.type === 'ImageButton' || selectedComponent.type === 'Image' || selectedComponent.type === 'PlayerInventory') && (
             <div>
               <label className="text-xs text-zinc-400">Texture Asset Location</label>
@@ -130,7 +117,6 @@ export default function PropertiesInspector({
             </div>
           )}
 
-          {/* PROPRIÉTÉ PLACEHOLDER : RÉSERVÉE AUX EDITBOXES */}
           {selectedComponent.type === 'EditBox' && (
             <div>
               <label className="text-xs text-zinc-400">Hint / Placeholder Text</label>
@@ -143,7 +129,6 @@ export default function PropertiesInspector({
             </div>
           )}
 
-          {/* POSITIONNEMENT GRILLE COMMUNE */}
           <div className="grid grid-cols-2 gap-2">
             <div>
               <label className="text-xs text-zinc-400">X Position</label>
@@ -155,7 +140,6 @@ export default function PropertiesInspector({
             </div>
           </div>
 
-          {/* TAILLE ET DIMENSIONS COMMUNES */}
           <div className="grid grid-cols-2 gap-2">
             <div>
               <label className="text-xs text-zinc-400">Width (Largeur)</label>
@@ -167,23 +151,33 @@ export default function PropertiesInspector({
             </div>
           </div>
 
-          {/* COULEUR EN HEXADÉCIMAL : EXCLUSIF AUX LABELS */}
-          {selectedComponent.type === 'Label' && (
-            <div>
-              <label className="text-xs text-zinc-400">Color (Java Hex)</label>
-              <input 
-                type="text" 
-                value={selectedComponent.color} 
-                onChange={(e) => updateSelectedComponent('color', e.target.value)} 
-                className="w-full bg-zinc-900 p-1.5 rounded border border-zinc-700 text-sm mt-1 text-emerald-300 outline-none font-mono" 
-                placeholder="0xFFFFFF"
-              />
+          {(selectedComponent.type === 'Label' || selectedComponent.type === 'ProgressBar') && (
+            <div className="flex flex-col gap-2">
+              <div>
+                <label className="text-xs text-zinc-400">{selectedComponent.type === 'ProgressBar' ? 'Fill Color (Java Hex)' : 'Color (Java Hex)'}</label>
+                <input 
+                  type="text" 
+                  value={selectedComponent.color} 
+                  onChange={(e) => updateSelectedComponent('color', e.target.value)} 
+                  className="w-full bg-zinc-900 p-1.5 rounded border border-zinc-700 text-sm mt-1 text-emerald-300 outline-none font-mono" 
+                  placeholder={selectedComponent.type === 'ProgressBar' ? '0xFF10B981' : '0xFFFFFF'}
+                />
+              </div>
+              {selectedComponent.type === 'ProgressBar' && (
+                <div>
+                  <label className="text-xs text-zinc-400">Background Color (Java Hex)</label>
+                  <input 
+                    type="text" 
+                    value={selectedComponent.bgColor} 
+                    onChange={(e) => updateSelectedComponent('bgColor', e.target.value)} 
+                    className="w-full bg-zinc-900 p-1.5 rounded border border-zinc-700 text-sm mt-1 text-zinc-400 outline-none font-mono" 
+                    placeholder="0xFF3F3F46"
+                  />
+                </div>
+              )}
             </div>
           )}
 
-          {/* ========================================================= */}
-          {/* COMPOSANT SPÉCIFIQUE : SCROLLPANEL                        */}
-          {/* ========================================================= */}
           {selectedComponent.type === 'ScrollPanel' && (
             <div className="flex flex-col gap-3 bg-zinc-900 p-2.5 rounded border border-zinc-700 mt-1">
               <span className="text-xs font-semibold text-zinc-400 uppercase">Scroll Container Settings</span>
@@ -191,184 +185,8 @@ export default function PropertiesInspector({
               <button
                 type="button"
                 onClick={() => {
-                  const widgetCode = `package ${selectedComponent.widgetPackage || 'com.' + guiConfig.modId + '.client.gui.components'};\n\n` +
-                  `import net.minecraft.client.Minecraft;\n` +
-                  `import net.neoforged.api.distmarker.Dist;\n` +
-                  `import net.neoforged.api.distmarker.OnlyIn;\n` +
-                  `import net.minecraft.client.gui.GuiGraphics;\n` +
-                  `import net.minecraft.client.gui.components.AbstractWidget;\n` +
-                  `import net.minecraft.client.gui.components.Renderable;\n` +
-                  `import net.minecraft.client.gui.components.events.GuiEventListener;\n` +
-                  `import net.minecraft.client.gui.narration.NarrationElementOutput;\n` +
-                  `import net.minecraft.network.chat.Component;\n` +
-                  `import net.minecraft.resources.ResourceLocation;\n` +
-                  `import java.util.ArrayList;\n` +
-                  `import java.util.List;\n\n` +
-                  `@OnlyIn(Dist.CLIENT)\n` +
-                  `public class ScrollPanelWidget extends AbstractWidget implements Renderable, GuiEventListener {\n` +
-                  `    private final List<AbstractWidget> children = new ArrayList<>();\n` +
-                  `    private final int maxContentHeight;\n` +
-                  `    private final int maxContentWidth;\n` +
-                  `    private final boolean allowXScroll;\n` +
-                  `    private final boolean allowYScroll;\n` +
-                  `    private final boolean showBorder;\n` +
-                  `    private final int borderColor;\n` +
-                  `    private double scrollAmountX = 0;\n` +
-                  `    private double scrollAmountY = 0;\n` +
-                  `    private double targetScrollX = 0;\n` +
-                  `    private double targetScrollY = 0;\n` +
-                  `    private boolean isDraggingY = false;\n` +
-                  `    private boolean isDraggingX = false;\n` +
-                  `    private GuiEventListener focusedChild = null;\n\n` +
-                  `    private ResourceLocation vBarTex = null;\n` +
-                  `    private ResourceLocation vThumbTex = null;\n` +
-                  `    private ResourceLocation hBarTex = null;\n` +
-                  `    private ResourceLocation hThumbTex = null;\n\n` +
-                  `    public ScrollPanelWidget(int x, int y, int width, int height, int maxContentWidth, int maxContentHeight, boolean allowXScroll, boolean allowYScroll, boolean showBorder, int borderColor) {\n` +
-                  `        super(x, y, width, height, Component.empty());\n` +
-                  `        this.maxContentWidth = maxContentWidth;\n` +
-                  `        this.maxContentHeight = maxContentHeight;\n` +
-                  `        this.allowXScroll = allowXScroll;\n` +
-                  `        this.allowYScroll = allowYScroll;\n` +
-                  `        this.showBorder = showBorder;\n` +
-                  `        this.borderColor = borderColor;\n` +
-                  `    }\n\n` +
-                  `    public void setVerticalScrollTextures(String bar, String thumb) {\n` +
-                  `        if (!bar.isEmpty()) this.vBarTex = ResourceLocation.parse(bar);\n` +
-                  `        if (!thumb.isEmpty()) this.vThumbTex = ResourceLocation.parse(thumb);\n` +
-                  `    }\n\n` +
-                  `    public void setHorizontalScrollTextures(String bar, String thumb) {\n` +
-                  `        if (!bar.isEmpty()) this.hBarTex = ResourceLocation.parse(bar);\n` +
-                  `        if (!thumb.isEmpty()) this.hThumbTex = ResourceLocation.parse(thumb);\n` +
-                  `    }\n\n` +
-                  `    public void addWidget(AbstractWidget widget) { this.children.add(widget); }\n\n` +
-                  `    @Override\n` +
-                  `    public void renderWidget(GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {\n` +
-                  `        if (this.allowYScroll) {\n` +
-                  `            this.scrollAmountY += (this.targetScrollY - this.scrollAmountY) * 0.25f;\n` +
-                  `            if (Math.abs(this.scrollAmountY - this.targetScrollY) < 0.05) this.scrollAmountY = this.targetScrollY;\n` +
-                  `        }\n` +
-                  `        if (this.allowXScroll) {\n` +
-                  `            this.scrollAmountX += (this.targetScrollX - this.scrollAmountX) * 0.25f;\n` +
-                  `            if (Math.abs(this.scrollAmountX - this.targetScrollX) < 0.05) this.scrollAmountX = this.targetScrollX;\n` +
-                  `        }\n\n` +
-                  `        if (this.showBorder) {\n` +
-                  `            guiGraphics.fill(this.getX(), this.getY(), this.getX() + this.width, this.getY() + this.height, 0x400F172A);\n` +
-                  `            guiGraphics.renderOutline(this.getX(), this.getY(), this.width, this.height, this.borderColor);\n` +
-                  `        }\n\n` +
-                  `        this.handleDragLogic(mouseX, mouseY);\n` +
-                  `        this.renderScrollBars(guiGraphics);\n\n` +
-                  `        if (this.width > 0 && this.height > 0) {\n` +
-                  `            guiGraphics.enableScissor(this.getX(), this.getY(), this.getX() + this.width, this.getY() + this.height);\n` +
-                  `            guiGraphics.pose().pushPose();\n` +
-                  `            guiGraphics.pose().translate(0, 0, 1.0f);\n\n` +
-                  `            for (AbstractWidget widget : children) {\n` +
-                  `                int relativeX = widget.getX();\n` +
-                  `                int relativeY = widget.getY();\n` +
-                  `                int absoluteX = (int) (this.getX() + relativeX - this.scrollAmountX);\n` +
-                  `                int absoluteY = (int) (this.getY() + relativeY - this.scrollAmountY);\n\n` +
-                  `                widget.setX(absoluteX);\n` +
-                  `                widget.setY(absoluteY);\n` +
-                  `                widget.render(guiGraphics, mouseX, mouseY, partialTick);\n\n` +
-                  `                widget.setX(relativeX);\n` +
-                  `                widget.setY(relativeY);\n` +
-                  `            }\n` +
-                  `            guiGraphics.pose().popPose();\n` +
-                  `            guiGraphics.disableScissor();\n` +
-                  `        }\n` +
-                  `    }\n\n` +
-                  `    private void renderScrollBars(GuiGraphics graphics) {\n` +
-                  `        if (this.allowYScroll && this.maxContentHeight > this.height && this.vBarTex != null && this.vThumbTex != null) {\n` +
-                  `            int barX = this.getX() + this.width - 10; int barY = this.getY(); int barW = 8; int barH = this.height;\n` +
-                  `            graphics.blit(this.vBarTex, barX, barY, 0, 0, barW, barH, barW, barH);\n` +
-                  `            double progressY = this.scrollAmountY / (this.maxContentHeight - this.height);\n` +
-                  `            int thumbH = Math.max(15, (int)((double)this.height * this.height / this.maxContentHeight));\n` +
-                  `            int thumbY = barY + (int)(progressY * (this.height - thumbH));\n` +
-                  `            graphics.blit(this.vThumbTex, barX, thumbY, 0, 0, barW, thumbH, barW, thumbH);\n` +
-                  `        }\n` +
-                  `        if (this.allowXScroll && this.maxContentWidth > this.width && this.hBarTex != null && this.hThumbTex != null) {\n` +
-                  `            int barX = this.getX(); int barY = this.getY() + this.height - 10; int barW = this.width; int barH = 8;\n` +
-                  `            graphics.blit(this.hBarTex, barX, barY, 0, 0, barW, barH, barW, barH);\n` +
-                  `            double progressX = this.scrollAmountX / (this.maxContentWidth - this.width);\n` +
-                  `            int thumbW = Math.max(15, (int)((double)this.width * this.width / this.maxContentWidth));\n` +
-                  `            int thumbX = barX + (int)(progressX * (this.width - thumbW));\n` +
-                  `            graphics.blit(this.hThumbTex, thumbX, barY, 0, 0, thumbW, barH, thumbW, barH);\n` +
-                  `        }\n` +
-                  `    }\n\n` +
-                  `    private void handleDragLogic(double mouseX, double mouseY) {\n` +
-                  `        if (this.isDraggingY) {\n` +
-                  `            int thumbH = Math.max(15, (int)((double)this.height * this.height / this.maxContentHeight));\n` +
-                  `            double delta = (mouseY - this.getY() - (thumbH / 2.0)) / (this.height - thumbH);\n` +
-                  `            this.targetScrollY = Math.max(0, Math.min(delta * (this.maxContentHeight - this.height), this.maxContentHeight - this.height));\n` +
-                  `            this.scrollAmountY = this.targetScrollY;\n` +
-                  `        }\n` +
-                  `        if (this.isDraggingX) {\n` +
-                  `            int thumbW = Math.max(15, (int)((double)this.width * this.width / this.maxContentWidth));\n` +
-                  `            double delta = (mouseX - this.getX() - (thumbW / 2.0)) / (this.width - thumbW);\n` +
-                  `            this.targetScrollX = Math.max(0, Math.min(delta * (this.maxContentWidth - this.width), this.maxContentWidth - this.width));\n` +
-                  `            this.scrollAmountX = this.targetScrollX;\n` +
-                  `        }\n` +
-                  `    }\n\n` +
-                  `    @Override\n` +
-                  `    public boolean mouseScrolled(double mouseX, double mouseY, double scrollX, double scrollY) {\n` +
-                  `        if (this.isMouseOver(mouseX, mouseY)) {\n` +
-                  `            if (this.allowYScroll && this.maxContentHeight > this.height) {\n` +
-                  `                this.targetScrollY = Math.max(0, Math.min(this.targetScrollY - (scrollY * 16), this.maxContentHeight - this.height));\n` +
-                  `                return true;\n` +
-                  `            }\n` +
-                  `            if (this.allowXScroll && this.maxContentWidth > this.width) {\n` +
-                  `                double activeScroll = scrollY != 0 ? scrollY : scrollX;\n` +
-                  `                this.targetScrollX = Math.max(0, Math.min(this.targetScrollX - (activeScroll * 16), this.maxContentWidth - this.width));\n` +
-                  `                return true;\n` +
-                  `            }\n` +
-                  `        }\n` +
-                  `        return false;\n` +
-                  `    }\n\n` +
-                  `    @Override\n` +
-                  `    public boolean mouseClicked(double mouseX, double mouseY, int button) {\n` +
-                  `        if (button == 0 && this.allowYScroll && mouseX >= this.getX() + this.width - 10 && mouseX <= this.getX() + this.width && mouseY >= this.getY() && mouseY <= this.getY() + this.height) {\n` +
-                  `            this.isDraggingY = true; return true;\n` +
-                  `        }\n` +
-                  `        if (button == 0 && this.allowXScroll && mouseX >= this.getX() && mouseX <= this.getX() + this.width && mouseY >= this.getY() + this.height - 10 && mouseY <= this.getY() + this.height) {\n` +
-                  `            this.isDraggingX = true; return true;\n` +
-                  `        }\n` +
-                  `        if (this.isMouseOver(mouseX, mouseY)) {\n` +
-                  `            for (AbstractWidget widget : children) {\n` +
-                  `                int relativeX = widget.getX();\n` +
-                  `                int relativeY = widget.getY();\n` +
-                  `                widget.setX((int) (this.getX() + relativeX - this.scrollAmountX));\n` +
-                  `                widget.setY((int) (this.getY() + relativeY - this.scrollAmountY));\n\n` +
-                  `                if (widget.mouseClicked(mouseX, mouseY, button)) {\n` +
-                  `                    this.focusedChild = widget;\n` +
-                  `                    widget.setX(relativeX);\n` +
-                  `                    widget.setY(relativeY);\n` +
-                  `                    return true;\n` +
-                  `                }\n` +
-                  `                widget.setX(relativeX);\n` +
-                  `                widget.setY(relativeY);\n` +
-                  `            }\n` +
-                  `        }\n` +
-                  `        return false;\n` +
-                  `    }\n\n` +
-                  `    @Override\n` +
-                  `    public boolean mouseDragged(double mouseX, double mouseY, int button, double dragX, double dragY) {\n` +
-                  `        if (this.isDraggingY || this.isDraggingX) { this.handleDragLogic(mouseX, mouseY); return true; }\n` +
-                  `        if (this.focusedChild != null && this.focusedChild instanceof AbstractWidget widget) {\n` +
-                  `            int relativeX = widget.getX(); int relativeY = widget.getY();\n` +
-                  `            widget.setX((int) (this.getX() + relativeX - this.scrollAmountX));\n` +
-                  `            widget.setY((int) (this.getY() + relativeY - this.scrollAmountY));\n` +
-                  `            if (widget.mouseDragged(mouseX, mouseY, button, dragX, dragY)) {\n` +
-                  `                widget.setX(relativeX); widget.setY(relativeY); return true;\n            }\n` +
-                  `            widget.setX(relativeX); widget.setY(relativeY);\n` +
-                  `        }\n` +
-                  `        return false;\n` +
-                  `    }\n\n` +
-                  `    @Override\n` +
-                  `    public boolean mouseReleased(double mouseX, double mouseY, int button) {\n` +
-                  `        if (button == 0) { this.isDraggingY = false; this.isDraggingX = false;\n            if (this.focusedChild != null) { this.focusedChild.mouseReleased(mouseX, mouseY, button); this.focusedChild = null; }\n        }\n        return super.mouseReleased(mouseX, mouseY, button);\n    }\n\n` +
-                  `    @Override protected void updateWidgetNarration(NarrationElementOutput output) {}\n` +
-                  `}`;
-
+                  const pkg = selectedComponent.widgetPackage || `com.${guiConfig.modId}.client.gui.components`;
+                  const widgetCode = generateScrollPanelWidgetCode(pkg);
                   const blob = new Blob([widgetCode], { type: 'text/plain;charset=utf-8' });
                   const url = URL.createObjectURL(blob);
                   const a = document.createElement('a');
@@ -392,7 +210,6 @@ export default function PropertiesInspector({
                 <input type="number" value={selectedComponent.maxScrollDistance || 600} onChange={(e) => updateSelectedComponent('maxScrollDistance', parseInt(e.target.value, 10) || 0)} className="w-full bg-zinc-950 p-1.5 rounded border border-zinc-700 text-xs mt-1 outline-none font-mono text-emerald-300" />
               </div>
 
-              {/* SÉLECTEUR D'AXE AVEC LE COMPORTEMENT DE SWITCH SÉCURISÉ === true */}
               <div>
                 <label className="text-[11px] text-zinc-400">Scroll Orientation</label>
                 <select
@@ -416,6 +233,22 @@ export default function PropertiesInspector({
                   <option value="VERTICAL">↕ Vertical Only</option>
                   <option value="HORIZONTAL">↔ Horizontal Only</option>
                 </select>
+              </div>
+
+              <div className="border-t border-zinc-800 pt-2 flex flex-col gap-1">
+                <label className="text-[11px] text-zinc-400">Panel Fixed Background (Optionnel):</label>
+                {loadedAssets.length > 0 ? (
+                  <select 
+                    value={selectedComponent.scrollBgTex || ''} 
+                    onChange={(e) => updateSelectedComponent('scrollBgTex', e.target.value)} 
+                    className="w-full bg-zinc-950 p-1.5 rounded border border-zinc-700 text-xs outline-none font-mono text-amber-400"
+                  >
+                    <option value="">-- No Image (Transparent) --</option>
+                    {loadedAssets.map(a => <option key={a.minecraftPath} value={a.minecraftPath}>{a.name}</option>)}
+                  </select>
+                ) : (
+                  <input type="text" value={selectedComponent.scrollBgTex || ""} onChange={(e) => updateSelectedComponent('scrollBgTex', e.target.value)} className="w-full bg-zinc-950 p-1.5 rounded border border-zinc-800 text-xs font-mono outline-none text-amber-400" placeholder="modid:textures/gui/panel_bg.png" />
+                )}
               </div>
 
               <div className="border-t border-zinc-800 pt-2 flex flex-col gap-2">
@@ -465,63 +298,98 @@ export default function PropertiesInspector({
             </div>
           )}
 
-          {/* ========================================================= */}
-          {/* COMPOSANT SPÉCIFIQUE : SLIDER AVEC OPTIONS COMPLÈTES      */}
-          {/* ========================================================= */}
-          {selectedComponent.type === 'Slider' && (
+          {(selectedComponent.type === 'Slider' || selectedComponent.type === 'ProgressBar') && (
             <div className="flex flex-col gap-2 bg-zinc-900 p-2.5 rounded border border-zinc-700 mt-1">
-              <span className="text-xs font-semibold text-zinc-400 uppercase">Slider Settings</span>
+              <span className="text-xs font-semibold text-zinc-400 uppercase">{selectedComponent.type} Settings</span>
               
-              <div>
-                <label className="text-xs text-zinc-400">Slider Display Title</label>
-                <input 
-                  type="text" 
-                  value={selectedComponent.text || "Slider"} 
-                  onChange={(e) => updateSelectedComponent('text', e.target.value)} 
-                  className="w-full bg-zinc-950 p-1.5 rounded border border-zinc-700 text-sm mt-1 outline-none font-sans text-white" 
-                />
-              </div>
+              {selectedComponent.type === 'Slider' && (
+                <>
+                  <div>
+                    <label className="text-xs text-zinc-400">Slider Display Title</label>
+                    <input 
+                      type="text" 
+                      value={selectedComponent.text || "Slider"} 
+                      onChange={(e) => updateSelectedComponent('text', e.target.value)} 
+                      className="w-full bg-zinc-950 p-1.5 rounded border border-zinc-700 text-sm mt-1 outline-none font-sans text-white" 
+                    />
+                  </div>
 
-              <div className="mt-1 flex flex-col gap-2">
-                <label className="flex items-center gap-2 text-xs cursor-pointer select-none">
-                  <input 
-                    type="checkbox" 
-                    checked={selectedComponent.isTextPrefix !== false} 
-                    onChange={(e) => updateSelectedComponent('isTextPrefix', e.target.checked)} 
-                    className="rounded bg-zinc-950 border-zinc-700 accent-emerald-500" 
-                  />
-                  Text acts as a Prefix (Append value)
-                </label>
-              </div>
+                  <div className="mt-1 flex flex-col gap-2">
+                    <label className="flex items-center gap-2 text-xs cursor-pointer select-none">
+                      <input 
+                        type="checkbox" 
+                        checked={selectedComponent.isTextPrefix !== false} 
+                        onChange={(e) => updateSelectedComponent('isTextPrefix', e.target.checked)} 
+                        className="rounded bg-zinc-950 border-zinc-700 accent-emerald-500" 
+                      />
+                      Text acts as a Prefix (Append value)
+                    </label>
+                  </div>
 
-              {selectedComponent.isTextPrefix !== false && (
-                <div className="mt-1">
-                  <label className="text-xs text-zinc-400">Value Float Precision</label>
-                  <select 
-                    value={selectedComponent.formatNumber || 'x'} 
-                    onChange={(e) => updateSelectedComponent('formatNumber', e.target.value)} 
-                    className="w-full bg-zinc-950 p-1.5 rounded border border-zinc-700 text-xs mt-1 outline-none font-mono text-emerald-400" 
-                  >
-                    <option value="x">x (Integer: 10)</option>
-                    <option value="x.x">x.x (1 Decimal: 10.5)</option>
-                    <option value="x.xx">x.xx (2 Decimals: 10.55)</option>
-                    <option value="x.xxx">x.xxx (3 Decimals: 10.555)</option>
-                  </select>
-                </div>
+                  {selectedComponent.isTextPrefix !== false && (
+                    <div className="mt-1">
+                      <label className="text-xs text-zinc-400">Value Float Precision</label>
+                      <select 
+                        value={selectedComponent.formatNumber || 'x'} 
+                        onChange={(e) => updateSelectedComponent('formatNumber', e.target.value)} 
+                        className="w-full bg-zinc-950 p-1.5 rounded border border-zinc-700 text-xs mt-1 outline-none font-mono text-emerald-400" 
+                      >
+                        <option value="x">x (Integer: 10)</option>
+                        <option value="x.x">x.x (1 Decimal: 10.5)</option>
+                        <option value="x.xx">x.xx (2 Decimals: 10.55)</option>
+                        <option value="x.xxx">x.xxx (3 Decimals: 10.555)</option>
+                      </select>
+                    </div>
+                  )}
+
+                  <div className="mt-1 border-t border-zinc-800 pt-2 flex flex-col gap-2">
+                    <label className="flex items-center gap-2 text-xs cursor-pointer select-none">
+                      <input type="checkbox" checked={selectedComponent.useCustomTextures === true} onChange={(e) => updateSelectedComponent('useCustomTextures', e.target.checked)} className="rounded bg-zinc-950 border-zinc-700 accent-emerald-500" />
+                      Enable Custom Textures
+                    </label>
+
+                    {selectedComponent.useCustomTextures === true && (
+                      <div className="bg-zinc-950/50 p-2 rounded border border-zinc-800 flex flex-col gap-1.5 mt-1">
+                        <label className="text-[10px] text-zinc-400">Track (Bar BG) Texture:</label>
+                        {loadedAssets.length > 0 ? (
+                          <select value={selectedComponent.sliderTrackTex || ''} onChange={(e) => updateSelectedComponent('sliderTrackTex', e.target.value)} className="w-full bg-zinc-950 p-1 rounded border border-zinc-700 text-[10px] outline-none font-mono text-amber-400">
+                            <option value="">-- Choose Asset --</option>
+                            {loadedAssets.map(a => <option key={a.minecraftPath} value={a.minecraftPath}>{a.name}</option>)}
+                          </select>
+                        ) : (
+                          <input type="text" value={selectedComponent.sliderTrackTex || ""} onChange={(e) => updateSelectedComponent('sliderTrackTex', e.target.value)} className="w-full bg-zinc-950 p-1 rounded border border-zinc-800 text-[10px] font-mono outline-none text-amber-400" placeholder="modid:textures/gui/slider_track.png" />
+                        )}
+
+                        <label className="text-[10px] text-zinc-400">Thumb (Puce) Texture:</label>
+                        {loadedAssets.length > 0 ? (
+                          <select value={selectedComponent.sliderThumbTex || ''} onChange={(e) => updateSelectedComponent('sliderThumbTex', e.target.value)} className="w-full bg-zinc-950 p-1 rounded border border-zinc-700 text-[10px] outline-none font-mono text-amber-400">
+                            <option value="">-- Choose Asset --</option>
+                            {loadedAssets.map(a => <option key={a.minecraftPath} value={a.minecraftPath}>{a.name}</option>)}
+                          </select>
+                        ) : (
+                          <input type="text" value={selectedComponent.sliderThumbTex || ""} onChange={(e) => updateSelectedComponent('sliderThumbTex', e.target.value)} className="w-full bg-zinc-950 p-1 rounded border border-zinc-800 text-[10px] font-mono outline-none text-amber-400" placeholder="modid:textures/gui/slider_thumb.png" />
+                        )}
+
+                        <label className="text-[10px] text-zinc-400">Thumb Width (px):</label>
+                        <input type="number" value={selectedComponent.sliderThumbWidth || 8} onChange={(e) => updateSelectedComponent('sliderThumbWidth', parseInt(e.target.value, 10) || 8)} className="w-full bg-zinc-950 p-1 rounded border border-zinc-700 text-[10px] font-mono outline-none text-white text-center" />
+                      </div>
+                    )}
+                  </div>
+                </>
               )}
 
               <div className="grid grid-cols-3 gap-1 mt-2 border-t border-zinc-800 pt-2">
                 <div>
                   <label className="text-[10px] text-zinc-400">Min</label>
-                  <input type="number" value={selectedComponent.minVal} onChange={(e) => updateSelectedComponent('minVal', parseFloat(e.target.value) || 0)} className="w-full bg-zinc-950 p-1 rounded border border-zinc-700 text-xs outline-none font-mono text-white" />
+                  <input type="number" step="0.1" value={selectedComponent.minVal} onChange={(e) => updateSelectedComponent('minVal', parseFloat(e.target.value) || 0)} className="w-full bg-zinc-950 p-1 rounded border border-zinc-700 text-xs outline-none font-mono text-white" />
                 </div>
                 <div>
                   <label className="text-[10px] text-zinc-400">Max</label>
-                  <input type="number" value={selectedComponent.maxVal} onChange={(e) => updateSelectedComponent('maxVal', parseFloat(e.target.value) || 0)} className="w-full bg-zinc-950 p-1 rounded border border-zinc-700 text-xs outline-none font-mono text-white" />
+                  <input type="number" step="0.1" value={selectedComponent.maxVal} onChange={(e) => updateSelectedComponent('maxVal', parseFloat(e.target.value) || 0)} className="w-full bg-zinc-950 p-1 rounded border border-zinc-700 text-xs outline-none font-mono text-white" />
                 </div>
                 <div>
-                  <label className="text-[10px] text-zinc-400">Default</label>
-                  <input type="number" value={selectedComponent.currentVal} onChange={(e) => updateSelectedComponent('currentVal', parseFloat(e.target.value) || 0)} className="w-full bg-zinc-950 p-1 rounded border border-zinc-700 text-xs outline-none font-mono text-emerald-300" />
+                  <label className="text-[10px] text-zinc-400">Value</label>
+                  <input type="number" step="0.1" value={selectedComponent.currentVal} onChange={(e) => updateSelectedComponent('currentVal', parseFloat(e.target.value) || 0)} className="w-full bg-zinc-950 p-1 rounded border border-zinc-700 text-xs outline-none font-mono text-emerald-300" />
                 </div>
               </div>
             </div>
