@@ -18,6 +18,8 @@ export default function App() {
     modId: "pondertestgui",
     className: "MyCustomScreen",
     guiTitle: "Ponder Custom Menu",
+    menuPackage: "", 
+    screenPackage: "", 
     backgroundType: "CUSTOM", 
     customTexture: "",
     bgWidth: 176,
@@ -41,6 +43,7 @@ export default function App() {
     { type: 'Image', label: 'Static Image', defaultWidth: 50, defaultHeight: 50 },
     { type: 'Slider', label: 'Slider Button', defaultWidth: 150, defaultHeight: 20 },
     { type: 'ProgressBar', label: 'Progress Bar', defaultWidth: 100, defaultHeight: 10 },
+    { type: 'HoverArea', label: 'Tooltip Hover Zone', defaultWidth: 50, defaultHeight: 50 },
     { type: 'EditBox', label: 'Input Field', defaultWidth: 150, defaultHeight: 20 },
     { type: 'InputSlot', label: 'Input Slot (18x18)', defaultWidth: 18, defaultHeight: 18 },
     { type: 'OutputSlot', label: 'Output Slot (26x26)', defaultWidth: 26, defaultHeight: 26 },
@@ -79,7 +82,6 @@ export default function App() {
     }
   };
 
-  // FIX DU DRAG : On stocke la position initiale du composant ET la position de la souris
   const handleComponentMouseDown = (e, comp) => {
     if (e.button !== 0 || isPanning) return;
     e.stopPropagation();
@@ -111,7 +113,6 @@ export default function App() {
       return;
     }
 
-    // FIX DU RESIZE : Utilisation du delta de la souris divisé par le zoom
     if (resizingId) {
       const deltaX = (e.clientX - dragOffset.startX) / scale;
       const deltaY = (e.clientY - dragOffset.startY) / scale;
@@ -129,7 +130,6 @@ export default function App() {
       return;
     }
 
-    // FIX DU DRAG : Calcul relatif à l'ancienne position (ignore les offsets du DOM)
     if (!draggingId) return;
 
     const deltaX = (e.clientX - dragOffset.startX) / scale;
@@ -223,8 +223,9 @@ export default function App() {
       y: dropY,
       width: compWidth,
       height: compHeight,
-      text: type === 'Label' || type === 'Button' || type === 'Slider' ? `My ${type}` : '',
+      text: (type === 'Label' || type === 'Button' || type === 'Slider') ? `My ${type}` : (type === 'HoverArea' ? 'tooltip.key' : ''),
       placeholder: type === 'EditBox' ? 'Type here...' : '',
+      isTranslatable: false, // NOUVEAU: Par défaut, le texte est en dur
       color: type === 'ProgressBar' ? '0xFF10B981' : '0xFFFFFF',
       bgColor: type === 'ProgressBar' ? '0xFF3F3F46' : '',
       texture: '',
@@ -238,7 +239,9 @@ export default function App() {
       useCustomTextures: false,
       sliderTrackTex: '',
       sliderThumbTex: '',
-      sliderThumbWidth: 8
+      sliderThumbWidth: 8,
+      bgTexture: '',
+      fillTexture: ''
     };
     setComponents([...components, newComponent]);
   };
@@ -351,6 +354,9 @@ export default function App() {
       );
     }
 
+    const displayText = comp.isTranslatable ? `[T] ${comp.text}` : comp.text;
+    const displayHint = comp.isTranslatable ? `[T] ${comp.placeholder}` : comp.placeholder;
+
     return (
       <div
         key={comp.id}
@@ -359,14 +365,15 @@ export default function App() {
         style={{ 
           position: 'absolute', left: `${comp.x}px`, top: `${comp.y}px`, width: `${comp.width}px`, height: `${comp.height}px`,
           cursor: draggingId === comp.id ? 'grabbing' : 'grab',
-          backgroundImage: associatedAsset ? `url(${associatedAsset.localUrl})` : 'none',
+          backgroundImage: associatedAsset && comp.type !== 'ProgressBar' ? `url(${associatedAsset.localUrl})` : 'none',
           backgroundSize: '100% 100%', backgroundRepeat: 'no-repeat', imageRendering: 'pixelated'
         }}
         className={`flex items-center justify-center text-[10px] border rounded font-sans group relative overflow-hidden
           ${isSelected ? 'border-emerald-400 ring-2 ring-emerald-500/20 bg-emerald-950/10' : 'border-zinc-700'}
           ${comp.type === 'Button' ? 'bg-zinc-700 text-zinc-200 border-zinc-500' : ''}
           ${comp.type === 'Slider' ? 'bg-zinc-600 text-zinc-100 border-zinc-400 font-medium' : ''}
-          ${comp.type === 'ProgressBar' ? 'bg-zinc-800 border-zinc-600' : ''}
+          ${comp.type === 'ProgressBar' ? 'border-zinc-600' : ''}
+          ${comp.type === 'HoverArea' ? 'border-sky-500 border-dashed bg-sky-500/10 text-sky-200 text-center p-1' : ''}
           ${comp.type === 'ImageButton' && !associatedAsset ? 'bg-amber-900/30 text-amber-300 border-amber-600' : ''}
           ${comp.type === 'Image' && !associatedAsset ? 'bg-purple-950/40 text-purple-300 border-purple-600 border-dashed font-mono' : ''}
           ${comp.type === 'EditBox' ? 'bg-zinc-950 text-zinc-400 border-zinc-800 px-2' : ''}
@@ -375,25 +382,39 @@ export default function App() {
           ${comp.type === 'Label' ? 'text-white font-semibold' : ''}
         `}
       >
-        <span className="relative z-10 pointer-events-none">
-          {comp.type === 'Button' && comp.text}
-          {comp.type === 'Slider' && `${comp.text} [${comp.currentVal}]`}
+        <span className="relative z-10 pointer-events-none w-full h-full flex items-center justify-center truncate">
+          {comp.type === 'Button' && displayText}
+          {comp.type === 'Slider' && `${displayText} [${comp.currentVal}]`}
+          {comp.type === 'HoverArea' && (displayText || 'Hover Tooltip Area')}
           {comp.type === 'ImageButton' && !associatedAsset && "IMG BTN"}
           {comp.type === 'Image' && !associatedAsset && "IMAGE"}
-          {comp.type === 'Label' && comp.text}
-          {comp.type === 'EditBox' && (comp.placeholder || 'Text field')}
+          {comp.type === 'Label' && displayText}
+          {comp.type === 'EditBox' && (displayHint || 'Text field')}
           {comp.type === 'InputSlot' && "IN"}
           {comp.type === 'OutputSlot' && "OUT"}
         </span>
         
         {comp.type === 'ProgressBar' && (
           <div 
-            className="absolute top-0 left-0 h-full transition-all duration-200 pointer-events-none" 
+            className="absolute top-0 left-0 w-full h-full pointer-events-none overflow-hidden" 
             style={{ 
-              width: `${Math.max(0, Math.min(100, ((comp.currentVal - comp.minVal) / (comp.maxVal - comp.minVal)) * 100))}%`,
-              backgroundColor: comp.color ? comp.color.replace('0xFF', '#') : '#10b981'
-            }} 
-          />
+              backgroundColor: !comp.useCustomTextures ? (comp.bgColor ? comp.bgColor.replace('0xFF', '#') : '#3f3f46') : 'transparent',
+              backgroundImage: comp.useCustomTextures && comp.bgTexture ? `url(${loadedAssets.find(a => a.minecraftPath === comp.bgTexture)?.localUrl})` : 'none',
+              backgroundSize: '100% 100%',
+              imageRendering: 'pixelated'
+            }}
+          >
+            <div 
+              className="absolute top-0 left-0 h-full transition-all duration-200" 
+              style={{ 
+                width: `${Math.max(0, Math.min(100, ((comp.currentVal - comp.minVal) / (comp.maxVal - comp.minVal)) * 100))}%`,
+                backgroundColor: !comp.useCustomTextures ? (comp.color ? comp.color.replace('0xFF', '#') : '#10b981') : 'transparent',
+                backgroundImage: comp.useCustomTextures && comp.fillTexture ? `url(${loadedAssets.find(a => a.minecraftPath === comp.fillTexture)?.localUrl})` : 'none',
+                backgroundSize: `${comp.width}px ${comp.height}px`, 
+                imageRendering: 'pixelated'
+              }} 
+            />
+          </div>
         )}
 
         <div
@@ -420,10 +441,16 @@ export default function App() {
           <label className="text-xs">Mod ID:</label>
           <input type="text" value={guiConfig.modId} onChange={e => setGuiConfig({...guiConfig, modId: e.target.value})} className="bg-zinc-950 p-1 rounded border border-zinc-700 text-sm text-amber-400 w-full outline-none font-mono" />
 
-          <label className="text-xs">Class Name:</label>
+          <label className="text-xs mt-1">Class Name:</label>
           <input type="text" value={guiConfig.className} onChange={e => setGuiConfig({...guiConfig, className: e.target.value})} className="bg-zinc-950 p-1 rounded border border-zinc-700 text-sm text-emerald-300 w-full outline-none"/>
           
-          <label className="text-xs">In-Game Title:</label>
+          <label className="text-xs mt-1">Menu Package (Optional):</label>
+          <input type="text" value={guiConfig.menuPackage || ""} onChange={e => setGuiConfig({...guiConfig, menuPackage: e.target.value})} placeholder={`com.${guiConfig.modId}.world.inventory`} className="bg-zinc-950 p-1 rounded border border-zinc-700 text-[10px] w-full outline-none font-mono text-zinc-300 placeholder:text-zinc-600"/>
+          
+          <label className="text-xs mt-1">Screen Package (Optional):</label>
+          <input type="text" value={guiConfig.screenPackage || ""} onChange={e => setGuiConfig({...guiConfig, screenPackage: e.target.value})} placeholder={`com.${guiConfig.modId}.client.gui`} className="bg-zinc-950 p-1 rounded border border-zinc-700 text-[10px] w-full outline-none font-mono text-zinc-300 placeholder:text-zinc-600"/>
+
+          <label className="text-xs mt-1">In-Game Title:</label>
           <input type="text" value={guiConfig.guiTitle} onChange={e => setGuiConfig({...guiConfig, guiTitle: e.target.value})} className="bg-zinc-950 p-1 rounded border border-zinc-700 text-sm w-full outline-none"/>
           
           <div className="grid grid-cols-2 gap-2 mt-1 border-t border-zinc-800 pt-2">
@@ -507,7 +534,6 @@ export default function App() {
             left: 0
           }}
         >
-          {/* LE CANVAS FIXÉ POUR LE DROP */}
           <div 
             style={{ 
               width: `${guiConfig.bgWidth}px`, 

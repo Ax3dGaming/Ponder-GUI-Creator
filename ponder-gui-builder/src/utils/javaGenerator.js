@@ -28,7 +28,9 @@ const generateMenuCode = (guiConfig, slots, hasPlayerInv) => {
         }`;
   }
 
-  return `package com.${guiConfig.modId}.world.inventory;
+  const actualMenuPackage = guiConfig.menuPackage || `com.${guiConfig.modId}.world.inventory`;
+
+  return `package ${actualMenuPackage};
 
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.entity.player.Player;
@@ -77,6 +79,9 @@ export const generateJavaCode = (guiConfig, components) => {
   const menuClassName = `${guiConfig.className}Menu`;
   const baseClass = `AbstractContainerScreen<${menuClassName}>`;
 
+  const actualMenuPackage = guiConfig.menuPackage || `com.${guiConfig.modId}.world.inventory`;
+  const actualScreenPackage = guiConfig.screenPackage || `com.${guiConfig.modId}.client.gui`;
+
   let fields = [];
   let initCode = [];
   let renderBgCode = [];
@@ -84,7 +89,6 @@ export const generateJavaCode = (guiConfig, components) => {
   const texWidth = guiConfig.textureWidth || 256;
   const texHeight = guiConfig.textureHeight || 256;
 
-  // On force le mode CUSTOM puisque la sélection d'arrière-plan Vanilla/Container a été retirée du site
   const textureLocation = `net.minecraft.resources.ResourceLocation.parse("${guiConfig.customTexture || 'pondertestgui:textures/gui/bg.png'}")`;
   if (texWidth !== 256 || texHeight !== 256) {
       renderBgCode.push(`        guiGraphics.blit(${textureLocation}, this.leftPos, this.topPos, 0, 0, ${guiConfig.bgWidth}, ${guiConfig.bgHeight}, ${texWidth}, ${texHeight});`);
@@ -95,6 +99,10 @@ export const generateJavaCode = (guiConfig, components) => {
   let scrollPanelChildrenMap = {};
   let scrollPanelIds = [];
 
+  const getTextComponent = (comp) => {
+      return comp.isTranslatable ? `Component.translatable("${comp.text}")` : `Component.literal("${comp.text}")`;
+  };
+
   components.forEach(comp => {
     const posX = comp.parentId ? `${comp.x}` : `this.leftPos + ${comp.x}`;
     const posY = comp.parentId ? `${comp.y}` : `this.topPos + ${comp.y}`;
@@ -102,8 +110,26 @@ export const generateJavaCode = (guiConfig, components) => {
     let componentInitString = "";
 
     switch (comp.type) {
+      case 'HoverArea':
+        fields.push(`    private net.minecraft.client.gui.components.AbstractWidget ${comp.id};`);
+        componentInitString = `new net.minecraft.client.gui.components.AbstractWidget(${posX}, ${posY}, ${comp.width}, ${comp.height}, Component.empty()) {\n` +
+        `            @Override\n` +
+        `            public void renderWidget(net.minecraft.client.gui.GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {}\n` +
+        `            @Override protected void updateWidgetNarration(net.minecraft.client.gui.narration.NarrationElementOutput output) {}\n` +
+        `        }`;
+        
+        let tooltipSetter = `        this.${comp.id}.setTooltip(net.minecraft.client.gui.components.Tooltip.create(${getTextComponent(comp)}));`;
+
+        if (comp.parentId) {
+            if (!scrollPanelChildrenMap[comp.parentId]) scrollPanelChildrenMap[comp.parentId] = [];
+            scrollPanelChildrenMap[comp.parentId].push(`        this.${comp.id} = ${componentInitString};\n${tooltipSetter}\n        this.${comp.parentId}.addWidget(this.${comp.id});`);
+        } else {
+            initCode.push(`        // Hover Tooltip Area: ${comp.id}\n        this.${comp.id} = ${componentInitString};\n${tooltipSetter}\n        this.addRenderableWidget(this.${comp.id});`);
+        }
+        break;
+
       case 'Label':
-        componentInitString = `new net.minecraft.client.gui.components.StringWidget(${posX}, ${posY}, ${comp.width}, ${comp.height}, Component.literal("${comp.text}"), this.font).setColor(${comp.color || '0xFFFFFF'})`;
+        componentInitString = `new net.minecraft.client.gui.components.StringWidget(${posX}, ${posY}, ${comp.width}, ${comp.height}, ${getTextComponent(comp)}, this.font).setColor(${comp.color || '0xFFFFFF'})`;
         if (comp.parentId) {
             if (!scrollPanelChildrenMap[comp.parentId]) scrollPanelChildrenMap[comp.parentId] = [];
             scrollPanelChildrenMap[comp.parentId].push(`        this.${comp.parentId}.addWidget(${componentInitString});`);
@@ -114,7 +140,7 @@ export const generateJavaCode = (guiConfig, components) => {
 
       case 'Button':
         fields.push(`    private net.minecraft.client.gui.components.Button ${comp.id};`);
-        componentInitString = `net.minecraft.client.gui.components.Button.builder(Component.literal("${comp.text}"), button -> {\n            // Click Action\n        }).bounds(${posX}, ${posY}, ${comp.width}, ${comp.height}).build()`;
+        componentInitString = `net.minecraft.client.gui.components.Button.builder(${getTextComponent(comp)}, button -> {\n            // Click Action\n        }).bounds(${posX}, ${posY}, ${comp.width}, ${comp.height}).build()`;
         
         if (comp.parentId) {
             if (!scrollPanelChildrenMap[comp.parentId]) scrollPanelChildrenMap[comp.parentId] = [];
@@ -124,26 +150,73 @@ export const generateJavaCode = (guiConfig, components) => {
         }
         break;
 
+      case 'ProgressBar':
+        fields.push(`    private net.minecraft.client.gui.components.AbstractWidget ${comp.id};`);
+        
+        componentInitString = `new net.minecraft.client.gui.components.AbstractWidget(${posX}, ${posY}, ${comp.width}, ${comp.height}, Component.empty()) {\n` +
+        `            private float min = ${comp.minVal}f;\n` +
+        `            private float max = ${comp.maxVal}f;\n` +
+        `            private float val = ${comp.currentVal}f;\n`;
+
+        if (comp.useCustomTextures && comp.bgTexture && comp.fillTexture) {
+            componentInitString +=
+            `            private final net.minecraft.resources.ResourceLocation bgTex = net.minecraft.resources.ResourceLocation.parse("${comp.bgTexture}");\n` +
+            `            private final net.minecraft.resources.ResourceLocation fillTex = net.minecraft.resources.ResourceLocation.parse("${comp.fillTexture}");\n\n` +
+            `            @Override\n` +
+            `            public void renderWidget(net.minecraft.client.gui.GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {\n` +
+            `                float progress = Math.max(0.0f, Math.min(1.0f, (val - min) / (max - min)));\n` +
+            `                int fgWidth = (int)(this.width * progress);\n` +
+            `                guiGraphics.blit(bgTex, this.getX(), this.getY(), 0, 0, this.width, this.height, this.width, this.height);\n` +
+            `                if (fgWidth > 0) {\n` +
+            `                    guiGraphics.blit(fillTex, this.getX(), this.getY(), 0, 0, fgWidth, this.height, this.width, this.height);\n` +
+            `                }\n` +
+            `            }\n`;
+        } else {
+            const barColor = comp.color || "0xFF10B981";
+            const bgBarColor = comp.bgColor || "0xFF3F3F46";
+            componentInitString +=
+            `\n            @Override\n` +
+            `            public void renderWidget(net.minecraft.client.gui.GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {\n` +
+            `                float progress = Math.max(0.0f, Math.min(1.0f, (val - min) / (max - min)));\n` +
+            `                int fgWidth = (int)(this.width * progress);\n` +
+            `                guiGraphics.fill(this.getX(), this.getY(), this.getX() + this.width, this.getY() + this.height, (int) Long.parseLong("${bgBarColor}".replace("0x", ""), 16));\n` +
+            `                if (fgWidth > 0) {\n` +
+            `                    guiGraphics.fill(this.getX(), this.getY(), this.getX() + fgWidth, this.getY() + this.height, (int) Long.parseLong("${barColor}".replace("0x", ""), 16));\n` +
+            `                }\n` +
+            `            }\n`;
+        }
+
+        componentInitString += `            @Override protected void updateWidgetNarration(net.minecraft.client.gui.narration.NarrationElementOutput output) {}\n        }`;
+
+        if (comp.parentId) {
+            if (!scrollPanelChildrenMap[comp.parentId]) scrollPanelChildrenMap[comp.parentId] = [];
+            scrollPanelChildrenMap[comp.parentId].push(`        this.${comp.id} = ${componentInitString};\n        this.${comp.parentId}.addWidget(this.${comp.id});`);
+        } else {
+            initCode.push(`        // Progress Bar: ${comp.id}\n        this.${comp.id} = ${componentInitString};\n        this.addRenderableWidget(this.${comp.id});`);
+        }
+        break;
+
       case 'Slider':
         fields.push(`    private net.minecraft.client.gui.components.AbstractSliderButton ${comp.id};`);
         
-        const sliderTitle = comp.text || "Slider";
         const isPrefix = comp.isTextPrefix !== false;
         const fmt = comp.formatNumber || 'x';
 
+        const baseTextComp = comp.isTranslatable ? `Component.translatable("${comp.text}")` : `Component.literal("${comp.text}")`;
+
         let javaMessageExpression = "";
         if (!isPrefix) {
-            javaMessageExpression = `Component.literal("${sliderTitle}")`;
+            javaMessageExpression = baseTextComp;
         } else {
             let valCalculation = `this.value * ${comp.maxVal}`;
             if (fmt === 'x') {
-                javaMessageExpression = `Component.literal("${sliderTitle}: " + (int)(${valCalculation}))`;
+                javaMessageExpression = `Component.empty().append(${baseTextComp}).append(Component.literal(": " + (int)(${valCalculation})))`;
             } else if (fmt === 'x.x') {
-                javaMessageExpression = `Component.literal("${sliderTitle}: " + String.format(java.util.Locale.US, "%.1f", ${valCalculation}))`;
+                javaMessageExpression = `Component.empty().append(${baseTextComp}).append(Component.literal(": " + String.format(java.util.Locale.US, "%.1f", ${valCalculation})))`;
             } else if (fmt === 'x.xx') {
-                javaMessageExpression = `Component.literal("${sliderTitle}: " + String.format(java.util.Locale.US, "%.2f", ${valCalculation}))`;
+                javaMessageExpression = `Component.empty().append(${baseTextComp}).append(Component.literal(": " + String.format(java.util.Locale.US, "%.2f", ${valCalculation})))`;
             } else if (fmt === 'x.xxx') {
-                javaMessageExpression = `Component.literal("${sliderTitle}: " + String.format(java.util.Locale.US, "%.3f", ${valCalculation}))`;
+                javaMessageExpression = `Component.empty().append(${baseTextComp}).append(Component.literal(": " + String.format(java.util.Locale.US, "%.3f", ${valCalculation})))`;
             }
         }
 
@@ -152,7 +225,7 @@ export const generateJavaCode = (guiConfig, components) => {
             const thumbRes = `net.minecraft.resources.ResourceLocation.parse("${comp.sliderThumbTex}")`;
             const thumbW = comp.sliderThumbWidth || 8;
 
-            componentInitString = `new net.minecraft.client.gui.components.AbstractSliderButton(${posX}, ${posY}, ${comp.width}, ${comp.height}, Component.literal("${sliderTitle}"), ${comp.currentVal / comp.maxVal}) {\n` +
+            componentInitString = `new net.minecraft.client.gui.components.AbstractSliderButton(${posX}, ${posY}, ${comp.width}, ${comp.height}, Component.empty(), ${comp.currentVal / comp.maxVal}) {\n` +
             `            @Override protected void updateMessage() { this.setMessage(${javaMessageExpression}); }\n` +
             `            @Override protected void applyValue() { /* Tracking code */ }\n` +
             `            @Override\n` +
@@ -165,43 +238,14 @@ export const generateJavaCode = (guiConfig, components) => {
             `            }\n` +
             `        }`;
         } else {
-            componentInitString = `new net.minecraft.client.gui.components.AbstractSliderButton(${posX}, ${posY}, ${comp.width}, ${comp.height}, Component.literal("${sliderTitle}"), ${comp.currentVal / comp.maxVal}) {\n            @Override protected void updateMessage() { this.setMessage(${javaMessageExpression}); }\n            @Override protected void applyValue() { /* Tracking code */ }\n        }`;
+            componentInitString = `new net.minecraft.client.gui.components.AbstractSliderButton(${posX}, ${posY}, ${comp.width}, ${comp.height}, Component.empty(), ${comp.currentVal / comp.maxVal}) {\n            @Override protected void updateMessage() { this.setMessage(${javaMessageExpression}); }\n            @Override protected void applyValue() { /* Tracking code */ }\n        }`;
         }
         
         if (comp.parentId) {
             if (!scrollPanelChildrenMap[comp.parentId]) scrollPanelChildrenMap[comp.parentId] = [];
-            scrollPanelChildrenMap[comp.parentId].push(`        this.${comp.id} = ${componentInitString};\n        this.${comp.parentId}.addWidget(this.${comp.id});`);
+            scrollPanelChildrenMap[comp.parentId].push(`        this.${comp.id} = ${componentInitString};\n        this.${comp.id}.updateMessage();\n        this.${comp.parentId}.addWidget(this.${comp.id});`);
         } else {
-            initCode.push(`        // Slider Button: ${comp.id}\n        this.${comp.id} = ${componentInitString};\n        this.addRenderableWidget(this.${comp.id});`);
-        }
-        break;
-
-      case 'ProgressBar':
-        fields.push(`    private net.minecraft.client.gui.components.AbstractWidget ${comp.id};`);
-        const barColor = comp.color || "0xFF10B981";
-        const bgBarColor = comp.bgColor || "0xFF3F3F46";
-
-        componentInitString = `new net.minecraft.client.gui.components.AbstractWidget(${posX}, ${posY}, ${comp.width}, ${comp.height}, Component.empty()) {\n` +
-        `            private float min = ${comp.minVal}f;\n` +
-        `            private float max = ${comp.maxVal}f;\n` +
-        `            private float val = ${comp.currentVal}f;\n\n` +
-        `            @Override\n` +
-        `            public void renderWidget(net.minecraft.client.gui.GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {\n` +
-        `                float progress = Math.max(0.0f, Math.min(1.0f, (val - min) / (max - min)));\n` +
-        `                int fgWidth = (int)(this.width * progress);\n` +
-        `                guiGraphics.fill(this.getX(), this.getY(), this.getX() + this.width, this.getY() + this.height, (int) Long.parseLong("${bgBarColor}".replace("0x", ""), 16));\n` +
-        `                if (fgWidth > 0) {\n` +
-        `                    guiGraphics.fill(this.getX(), this.getY(), this.getX() + fgWidth, this.getY() + this.height, (int) Long.parseLong("${barColor}".replace("0x", ""), 16));\n` +
-        `                }\n` +
-        `            }\n` +
-        `            @Override protected void updateWidgetNarration(net.minecraft.client.gui.narration.NarrationElementOutput output) {}\n` +
-        `        }`;
-
-        if (comp.parentId) {
-            if (!scrollPanelChildrenMap[comp.parentId]) scrollPanelChildrenMap[comp.parentId] = [];
-            scrollPanelChildrenMap[comp.parentId].push(`        this.${comp.id} = ${componentInitString};\n        this.${comp.parentId}.addWidget(this.${comp.id});`);
-        } else {
-            initCode.push(`        // Progress Bar: ${comp.id}\n        this.${comp.id} = ${componentInitString};\n        this.addRenderableWidget(this.${comp.id});`);
+            initCode.push(`        // Slider Button: ${comp.id}\n        this.${comp.id} = ${componentInitString};\n        this.${comp.id}.updateMessage();\n        this.addRenderableWidget(this.${comp.id});`);
         }
         break;
 
@@ -219,13 +263,14 @@ export const generateJavaCode = (guiConfig, components) => {
 
       case 'EditBox':
         fields.push(`    private net.minecraft.client.gui.components.EditBox ${comp.id};`);
-        componentInitString = `new net.minecraft.client.gui.components.EditBox(this.font, ${posX}, ${posY}, ${comp.width}, ${comp.height}, Component.literal("${comp.placeholder}"))`;
+        const hintComp = comp.isTranslatable ? `Component.translatable("${comp.placeholder}")` : `Component.literal("${comp.placeholder}")`;
+        componentInitString = `new net.minecraft.client.gui.components.EditBox(this.font, ${posX}, ${posY}, ${comp.width}, ${comp.height}, ${hintComp})`;
         
         if (comp.parentId) {
             if (!scrollPanelChildrenMap[comp.parentId]) scrollPanelChildrenMap[comp.parentId] = [];
-            scrollPanelChildrenMap[comp.parentId].push(`        this.${comp.id} = ${componentInitString};\n        this.${comp.id}.setHint(Component.literal("${comp.placeholder}"));\n        this.${comp.parentId}.addWidget(this.${comp.id});`);
+            scrollPanelChildrenMap[comp.parentId].push(`        this.${comp.id} = ${componentInitString};\n        this.${comp.id}.setHint(${hintComp});\n        this.${comp.parentId}.addWidget(this.${comp.id});`);
         } else {
-            initCode.push(`        // EditBox: ${comp.id}\n        this.${comp.id} = ${componentInitString};\n        this.addRenderableWidget(this.${comp.id});`);
+            initCode.push(`        // EditBox: ${comp.id}\n        this.${comp.id} = ${componentInitString};\n        this.${comp.id}.setHint(${hintComp});\n        this.addRenderableWidget(this.${comp.id});`);
         }
         break;
 
@@ -326,14 +371,14 @@ export const generateJavaCode = (guiConfig, components) => {
       labelsHideCode = `\n        this.titleLabelX = 99999;\n        this.inventoryLabelX = 99999;`;
   }
 
-  const screenCode = `package com.${guiConfig.modId}.client.gui;
+  const screenCode = `package ${actualScreenPackage};
 
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.item.ItemStack;
-import com.${guiConfig.modId}.world.inventory.${menuClassName};
+import ${actualMenuPackage}.${menuClassName};
 
 public class ${guiConfig.className}Screen extends AbstractContainerScreen<${menuClassName}> {
 
