@@ -41,12 +41,14 @@ export default function App() {
     { type: 'Button', label: 'Button', defaultWidth: 120, defaultHeight: 20 },
     { type: 'ImageButton', label: 'Image Button', defaultWidth: 20, defaultHeight: 20 },
     { type: 'Image', label: 'Static Image', defaultWidth: 50, defaultHeight: 50 },
+    { type: 'ItemDisplay', label: 'Item Display', defaultWidth: 16, defaultHeight: 16 },
+    { type: 'EntityDisplay', label: 'Entity Display', defaultWidth: 40, defaultHeight: 60 },
     { type: 'Slider', label: 'Slider Button', defaultWidth: 150, defaultHeight: 20 },
     { type: 'ProgressBar', label: 'Progress Bar', defaultWidth: 100, defaultHeight: 10 },
     { type: 'HoverArea', label: 'Tooltip Hover Zone', defaultWidth: 50, defaultHeight: 50 },
     { type: 'EditBox', label: 'Input Field', defaultWidth: 150, defaultHeight: 20 },
     { type: 'InputSlot', label: 'Input Slot (18x18)', defaultWidth: 18, defaultHeight: 18 },
-    { type: 'OutputSlot', label: 'Output Slot (26x26)', defaultWidth: 26, defaultHeight: 26 },
+    { type: 'OutputSlot', label: 'Output Slot (18x18)', defaultWidth: 18, defaultHeight: 18 },
     { type: 'PlayerInventory', label: 'Player Inventory', defaultWidth: 162, defaultHeight: 76 },
     { type: 'ScrollPanel', label: 'Scroll Panel', defaultWidth: 200, defaultHeight: 150 },
   ];
@@ -91,7 +93,7 @@ export default function App() {
 
   const handleResizeMouseDown = (e, comp) => {
     if (e.button !== 0 || isPanning) return;
-    if (comp.type === 'PlayerInventory') return; 
+    if (['PlayerInventory', 'ItemDisplay', 'InputSlot', 'OutputSlot'].includes(comp.type)) return; 
     e.stopPropagation();
     e.preventDefault();
     setResizingId(comp.id);
@@ -225,8 +227,8 @@ export default function App() {
       height: compHeight,
       text: (type === 'Label' || type === 'Button' || type === 'Slider') ? `My ${type}` : (type === 'HoverArea' ? 'tooltip.key' : ''),
       placeholder: type === 'EditBox' ? 'Type here...' : '',
-      isTranslatable: false, // NOUVEAU: Par défaut, le texte est en dur
-      color: type === 'ProgressBar' ? '0xFF10B981' : '0xFFFFFF',
+      isTranslatable: false,
+      color: type === 'ProgressBar' ? '0xFF10B981' : '0xFFFFFFFF',
       bgColor: type === 'ProgressBar' ? '0xFF3F3F46' : '',
       texture: '',
       parentId: targetPanelId,
@@ -241,7 +243,18 @@ export default function App() {
       sliderThumbTex: '',
       sliderThumbWidth: 8,
       bgTexture: '',
-      fillTexture: ''
+      fillTexture: '',
+      item: type === 'ItemDisplay' ? 'minecraft:apple' : '',
+      itemScale: 1.0,
+      itemRotationX: 0,
+      itemRotationY: 0,
+      itemRotationZ: 0,
+      entity: type === 'EntityDisplay' ? 'minecraft:zombie' : '',
+      entityScale: 30,
+      entityRotationX: 0,
+      entityRotationY: 0,
+      entityRotationZ: 0,
+      entityFollowMouse: true
     };
     setComponents([...components, newComponent]);
   };
@@ -356,6 +369,7 @@ export default function App() {
 
     const displayText = comp.isTranslatable ? `[T] ${comp.text}` : comp.text;
     const displayHint = comp.isTranslatable ? `[T] ${comp.placeholder}` : comp.placeholder;
+    const isResizableType = !['PlayerInventory', 'ItemDisplay', 'InputSlot', 'OutputSlot'].includes(comp.type);
 
     return (
       <div
@@ -374,15 +388,16 @@ export default function App() {
           ${comp.type === 'Slider' ? 'bg-zinc-600 text-zinc-100 border-zinc-400 font-medium' : ''}
           ${comp.type === 'ProgressBar' ? 'border-zinc-600' : ''}
           ${comp.type === 'HoverArea' ? 'border-sky-500 border-dashed bg-sky-500/10 text-sky-200 text-center p-1' : ''}
+          ${comp.type === 'ItemDisplay' ? 'bg-emerald-900/30 text-emerald-400 border-emerald-600 border-dashed rounded-none' : ''}
+          ${comp.type === 'EntityDisplay' ? 'bg-red-900/30 text-red-400 border-red-600 border-dashed rounded-none' : ''}
           ${comp.type === 'ImageButton' && !associatedAsset ? 'bg-amber-900/30 text-amber-300 border-amber-600' : ''}
           ${comp.type === 'Image' && !associatedAsset ? 'bg-purple-950/40 text-purple-300 border-purple-600 border-dashed font-mono' : ''}
           ${comp.type === 'EditBox' ? 'bg-zinc-950 text-zinc-400 border-zinc-800 px-2' : ''}
-          ${comp.type === 'InputSlot' ? 'bg-zinc-600/30 text-zinc-300 border-zinc-500 rounded-none' : ''}
-          ${comp.type === 'OutputSlot' ? 'bg-zinc-500/30 text-zinc-200 border-zinc-400 rounded-none' : ''}
+          ${comp.type === 'InputSlot' || comp.type === 'OutputSlot' ? 'bg-zinc-600/30 text-zinc-300 border-zinc-500 rounded-none' : ''}
           ${comp.type === 'Label' ? 'text-white font-semibold' : ''}
         `}
       >
-        <span className="relative z-10 pointer-events-none w-full h-full flex items-center justify-center truncate">
+        <span className="relative z-10 pointer-events-none w-full h-full flex flex-col items-center justify-center text-center truncate">
           {comp.type === 'Button' && displayText}
           {comp.type === 'Slider' && `${displayText} [${comp.currentVal}]`}
           {comp.type === 'HoverArea' && (displayText || 'Hover Tooltip Area')}
@@ -392,6 +407,18 @@ export default function App() {
           {comp.type === 'EditBox' && (displayHint || 'Text field')}
           {comp.type === 'InputSlot' && "IN"}
           {comp.type === 'OutputSlot' && "OUT"}
+          {comp.type === 'ItemDisplay' && (
+            <div style={{ transform: `scale(${comp.itemScale || 1}) rotateX(${comp.itemRotationX || 0}deg) rotateY(${comp.itemRotationY || 0}deg) rotateZ(${comp.itemRotationZ || 0}deg)` }}>
+              🍎
+            </div>
+          )}
+          {comp.type === 'EntityDisplay' && (
+            <div className="flex flex-col items-center gap-0.5 text-[8px]">
+              <span>🧟</span>
+              <span className="opacity-60">Sc:{comp.entityScale}</span>
+              {!comp.entityFollowMouse && <span className="opacity-60">R:{comp.entityRotationY}°</span>}
+            </div>
+          )}
         </span>
         
         {comp.type === 'ProgressBar' && (
@@ -417,10 +444,12 @@ export default function App() {
           </div>
         )}
 
-        <div
-          onMouseDown={(e) => handleResizeMouseDown(e, comp)}
-          className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-emerald-500 rounded-tl cursor-nwse-resize opacity-0 group-hover:opacity-100 transition-opacity z-40"
-        />
+        {isResizableType && (
+          <div
+            onMouseDown={(e) => handleResizeMouseDown(e, comp)}
+            className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-emerald-500 rounded-tl cursor-nwse-resize opacity-0 group-hover:opacity-100 transition-opacity z-40"
+          />
+        )}
       </div>
     );
   };

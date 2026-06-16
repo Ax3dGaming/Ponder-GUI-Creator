@@ -5,9 +5,7 @@ const generateMenuCode = (guiConfig, slots, hasPlayerInv) => {
     if (slot.type === 'InputSlot') {
       slotRegistrations.push(`        // Input Slot: ${slot.id}\n        this.addSlot(new Slot(container, ${index}, ${slot.x}, ${slot.y}));`);
     } else if (slot.type === 'OutputSlot') {
-      const centerX = slot.x + 4;
-      const centerY = slot.y + 4;
-      slotRegistrations.push(`        // Output Slot (Auto-centered +4px): ${slot.id}\n        this.addSlot(new Slot(container, ${index}, ${centerX}, ${centerY}) {`);
+      slotRegistrations.push(`        // Output Slot: ${slot.id}\n        this.addSlot(new Slot(container, ${index}, ${slot.x}, ${slot.y}) {`);
       slotRegistrations.push(`            @Override public boolean mayPlace(ItemStack stack) { return false; }`);
       slotRegistrations.push(`        });`);
     }
@@ -110,6 +108,96 @@ export const generateJavaCode = (guiConfig, components) => {
     let componentInitString = "";
 
     switch (comp.type) {
+      case 'ItemDisplay':
+        const scaleItem = comp.itemScale !== undefined ? comp.itemScale : 1.0;
+        const rX = comp.itemRotationX || 0;
+        const rY = comp.itemRotationY || 0;
+        const rZ = comp.itemRotationZ || 0;
+        
+        let itemRenderCode = `        guiGraphics.pose().pushPose();\n`;
+        itemRenderCode += `        guiGraphics.pose().translate(${posX} + 8.0f, ${posY} + 8.0f, 0.0f);\n`;
+        if (scaleItem !== 1.0) itemRenderCode += `        guiGraphics.pose().scale(${scaleItem}f, ${scaleItem}f, 1.0f);\n`;
+        if (rX !== 0) itemRenderCode += `        guiGraphics.pose().mulPose(com.mojang.math.Axis.XP.rotationDegrees(${rX}f));\n`;
+        if (rY !== 0) itemRenderCode += `        guiGraphics.pose().mulPose(com.mojang.math.Axis.YP.rotationDegrees(${rY}f));\n`;
+        if (rZ !== 0) itemRenderCode += `        guiGraphics.pose().mulPose(com.mojang.math.Axis.ZP.rotationDegrees(${rZ}f));\n`;
+        itemRenderCode += `        guiGraphics.renderFakeItem(new ItemStack(net.minecraft.core.registries.BuiltInRegistries.ITEM.get(net.minecraft.resources.ResourceLocation.parse("${comp.item}"))), -8, -8);\n`;
+        itemRenderCode += `        guiGraphics.pose().popPose();`;
+
+        if (comp.parentId) {
+            if (!scrollPanelChildrenMap[comp.parentId]) scrollPanelChildrenMap[comp.parentId] = [];
+            scrollPanelChildrenMap[comp.parentId].push(itemRenderCode);
+        } else {
+            renderBgCode.push(itemRenderCode);
+        }
+        break;
+
+      case 'EntityDisplay':
+        fields.push(`    private net.minecraft.world.entity.LivingEntity entity_${comp.id};`);
+        
+        const entityInit = `        net.minecraft.world.entity.EntityType<?> type_${comp.id} = net.minecraft.core.registries.BuiltInRegistries.ENTITY_TYPE.get(net.minecraft.resources.ResourceLocation.parse("${comp.entity}"));\n` +
+                           `        if (type_${comp.id} != null && this.minecraft != null && this.minecraft.level != null) {\n` +
+                           `            this.entity_${comp.id} = (net.minecraft.world.entity.LivingEntity) type_${comp.id}.create(this.minecraft.level);\n` +
+                           `        }`;
+        initCode.push(entityInit);
+
+        const follow = comp.entityFollowMouse !== false;
+        const eX = comp.entityRotationX || 0;
+        const eY = comp.entityRotationY || 0;
+        const eZ = comp.entityRotationZ || 0;
+
+        let entityRender = `        if (this.entity_${comp.id} != null) {\n`;
+        if (!follow) {
+            entityRender += `            guiGraphics.pose().pushPose();\n`;
+            if (eZ !== 0) entityRender += `            guiGraphics.pose().mulPose(com.mojang.math.Axis.ZP.rotationDegrees(${eZ}f));\n`;
+        }
+
+        entityRender += `            int posX = ${posX} + ${Math.round(comp.width / 2)};\n`;
+        entityRender += `            int posY = ${posY} + ${comp.height};\n`;
+        entityRender += `            int scale = ${comp.entityScale || 30};\n\n`;
+
+        if (follow) {
+            entityRender += `            float mouseDeltaX = (float) (posX - mouseX);\n`;
+            entityRender += `            float mouseDeltaY = (float) (posY - scale - mouseY);\n\n`;
+            entityRender += `            this.entity_${comp.id}.setYRot(180.0F + mouseDeltaX * 0.04F);\n`;
+            entityRender += `            this.entity_${comp.id}.setXRot(mouseDeltaY * 0.1F);\n`;
+            entityRender += `            this.entity_${comp.id}.yBodyRot = 180.0F + mouseDeltaX * 0.02F;\n`;
+        } else {
+            entityRender += `            this.entity_${comp.id}.setYRot(180.0F + ${eY}F);\n`;
+            entityRender += `            this.entity_${comp.id}.setXRot(${eX}F);\n`;
+            entityRender += `            this.entity_${comp.id}.yBodyRot = 180.0F + ${eY}F;\n`;
+        }
+
+        entityRender += `            this.entity_${comp.id}.yHeadRot = this.entity_${comp.id}.getYRot();\n`;
+        entityRender += `            this.entity_${comp.id}.yHeadRotO = this.entity_${comp.id}.getYRot();\n\n`;
+        
+        entityRender += `            org.joml.Quaternionf quaternionf = (new org.joml.Quaternionf()).rotationZ((float)Math.PI);\n`;
+        entityRender += `            org.joml.Quaternionf quaternionf1 = (new org.joml.Quaternionf()).rotationX(this.entity_${comp.id}.getXRot() * ((float)Math.PI / 180F));\n`;
+        entityRender += `            quaternionf.mul(quaternionf1);\n\n`;
+        
+        entityRender += `            net.minecraft.client.gui.screens.inventory.InventoryScreen.renderEntityInInventory(\n`;
+        entityRender += `                    guiGraphics,\n`;
+        entityRender += `                    (float)posX,\n`;
+        entityRender += `                    (float)posY,\n`;
+        entityRender += `                    (float)scale,\n`;
+        entityRender += `                    new org.joml.Vector3f(0.0F, 0.0F, 0.0F),\n`;
+        entityRender += `                    quaternionf,\n`;
+        entityRender += `                    quaternionf1,\n`;
+        entityRender += `                    this.entity_${comp.id}\n`;
+        entityRender += `            );\n`;
+
+        if (!follow) {
+            entityRender += `            guiGraphics.pose().popPose();\n`;
+        }
+        entityRender += `        }`;
+        
+        if (comp.parentId) {
+            if (!scrollPanelChildrenMap[comp.parentId]) scrollPanelChildrenMap[comp.parentId] = [];
+            scrollPanelChildrenMap[comp.parentId].push(entityRender);
+        } else {
+            renderBgCode.push(entityRender);
+        }
+        break;
+
       case 'HoverArea':
         fields.push(`    private net.minecraft.client.gui.components.AbstractWidget ${comp.id};`);
         componentInitString = `new net.minecraft.client.gui.components.AbstractWidget(${posX}, ${posY}, ${comp.width}, ${comp.height}, Component.empty()) {\n` +
@@ -275,10 +363,23 @@ export const generateJavaCode = (guiConfig, components) => {
         break;
 
       case 'Image':
-        if (comp.parentId) {
-            renderBgCode.push(`        // Static Image (Inside ScrollPanel ${comp.parentId}): ${comp.id}`);
+        const imgLoc = `net.minecraft.resources.ResourceLocation.parse("${comp.texture || 'pondertestgui:textures/gui/custom_image.png'}")`;
+        
+        let imgRenderCode = "";
+        if (comp.color && comp.color !== '0xFFFFFFFF' && comp.color !== '0xFFFFFF') {
+            imgRenderCode += `        int color_${comp.id} = (int) Long.parseLong("${comp.color}".replace("0x", ""), 16);\n`;
+            imgRenderCode += `        guiGraphics.setColor(((color_${comp.id} >> 16) & 0xFF) / 255.0F, ((color_${comp.id} >> 8) & 0xFF) / 255.0F, (color_${comp.id} & 0xFF) / 255.0F, ((color_${comp.id} >> 24) & 0xFF) / 255.0F);\n`;
+            imgRenderCode += `        guiGraphics.blit(${imgLoc}, ${posX}, ${posY}, 0, 0, ${comp.width}, ${comp.height}, ${comp.width}, ${comp.height});\n`;
+            imgRenderCode += `        guiGraphics.setColor(1.0F, 1.0F, 1.0F, 1.0F);\n`;
         } else {
-            renderBgCode.push(`        // Static Image: ${comp.id}\n        guiGraphics.blit(net.minecraft.resources.ResourceLocation.parse("${comp.texture || 'pondertestgui:textures/gui/custom_image.png'}"), ${posX}, ${posY}, 0, 0, ${comp.width}, ${comp.height}, ${comp.width}, ${comp.height});`);
+            imgRenderCode = `        guiGraphics.blit(${imgLoc}, ${posX}, ${posY}, 0, 0, ${comp.width}, ${comp.height}, ${comp.width}, ${comp.height});`;
+        }
+
+        if (comp.parentId) {
+            if (!scrollPanelChildrenMap[comp.parentId]) scrollPanelChildrenMap[comp.parentId] = [];
+            scrollPanelChildrenMap[comp.parentId].push(imgRenderCode);
+        } else {
+            renderBgCode.push(`        // Static Image: ${comp.id}\n` + imgRenderCode);
         }
         break;
 
@@ -287,7 +388,7 @@ export const generateJavaCode = (guiConfig, components) => {
         break;
 
       case 'OutputSlot':
-        initCode.push(`        // Slot output: ${comp.id} auto-centered via Menu at relative X: ${comp.x + 4}, Y: ${comp.y + 4}`);
+        initCode.push(`        // Slot output: ${comp.id} registered via Menu at relative X: ${comp.x}, Y: ${comp.y}`);
         break;
 
       case 'PlayerInventory':

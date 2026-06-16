@@ -11,7 +11,6 @@ export default function PropertiesInspector({
 }) {
 
   // --- HELPER LOGIC POUR LE COLOR PICKER ---
-  // Convertit le 0xAARRGGBB de Java en #RRGGBB pour l'affichage HTML
   const getHtmlColor = (javaColor) => {
     if (!javaColor) return '#ffffff';
     const clean = javaColor.replace('0x', '');
@@ -19,12 +18,11 @@ export default function PropertiesInspector({
     return '#ffffff';
   };
 
-  // Convertit le #RRGGBB du Color Picker HTML en 0xAARRGGBB pour Java (en gardant l'Alpha existant)
   const handleColorPick = (e, propName, currentJavaColor) => {
     const htmlHex = e.target.value.replace('#', '').toUpperCase();
     let alpha = 'FF';
     if (currentJavaColor && currentJavaColor.startsWith('0x') && currentJavaColor.length === 10) {
-      alpha = currentJavaColor.substring(2, 4); // Récupère l'opacité actuelle
+      alpha = currentJavaColor.substring(2, 4); 
     }
     updateSelectedComponent(propName, `0x${alpha}${htmlHex}`);
   };
@@ -95,6 +93,61 @@ export default function PropertiesInspector({
             <div className="text-xs text-emerald-400 bg-zinc-900 p-2 rounded mt-1 select-all font-mono break-all">{selectedComponent.id}</div>
           </div>
 
+          {/* ITEM DISPLAY PROPERTIES */}
+          {selectedComponent.type === 'ItemDisplay' && (
+            <div className="flex flex-col gap-2">
+              <div>
+                <label className="text-xs text-zinc-400">Item Registry ID</label>
+                <input type="text" value={selectedComponent.item || ''} onChange={(e) => updateSelectedComponent('item', e.target.value)} className="w-full bg-zinc-900 p-1.5 rounded border border-zinc-700 text-sm mt-1 outline-none font-mono text-emerald-300" placeholder="minecraft:apple" />
+              </div>
+              <div>
+                <label className="text-[10px] text-zinc-400">Scale factor</label>
+                <input type="number" step="0.1" value={selectedComponent.itemScale ?? 1.0} onChange={(e) => updateSelectedComponent('itemScale', parseFloat(e.target.value) || 1.0)} className="w-full bg-zinc-900 p-1.5 rounded border border-zinc-700 text-sm mt-1 outline-none font-mono text-white" />
+              </div>
+              <span className="text-[11px] text-zinc-400 font-bold uppercase mt-1">3D Rotation (Degrees)</span>
+              <div className="grid grid-cols-3 gap-1">
+                <div>
+                  <label className="text-[10px] text-zinc-500 block text-center">Axis X</label>
+                  <input type="number" value={selectedComponent.itemRotationX || 0} onChange={(e) => updateSelectedComponent('itemRotationX', parseInt(e.target.value, 10) || 0)} className="w-full bg-zinc-950 p-1 rounded border border-zinc-700 text-xs text-center font-mono outline-none text-white" />
+                </div>
+                <div>
+                  <label className="text-[10px] text-zinc-500 block text-center">Axis Y</label>
+                  <input type="number" value={selectedComponent.itemRotationY || 0} onChange={(e) => updateSelectedComponent('itemRotationY', parseInt(e.target.value, 10) || 0)} className="w-full bg-zinc-950 p-1 rounded border border-zinc-700 text-xs text-center font-mono outline-none text-white" />
+                </div>
+                <div>
+                  <label className="text-[10px] text-zinc-500 block text-center">Axis Z</label>
+                  <input type="number" value={selectedComponent.itemRotationZ || 0} onChange={(e) => updateSelectedComponent('itemRotationZ', parseInt(e.target.value, 10) || 0)} className="w-full bg-zinc-950 p-1 rounded border border-zinc-700 text-xs text-center font-mono outline-none text-white" />
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* ENTITY DISPLAY PROPERTIES */}
+          {selectedComponent.type === 'EntityDisplay' && (
+            <div className="flex flex-col gap-2">
+              <div>
+                <label className="text-xs text-zinc-400">Entity Registry ID</label>
+                <input type="text" value={selectedComponent.entity || ''} onChange={(e) => updateSelectedComponent('entity', e.target.value)} className="w-full bg-zinc-900 p-1.5 rounded border border-zinc-700 text-sm mt-1 outline-none font-mono text-red-300" placeholder="minecraft:zombie" />
+              </div>
+              <div className="grid grid-cols-2 gap-2 mt-1 border-t border-zinc-800 pt-2">
+                <div>
+                  <label className="text-[10px] text-zinc-400">Render Scale</label>
+                  <input type="number" value={selectedComponent.entityScale || 30} onChange={(e) => updateSelectedComponent('entityScale', parseInt(e.target.value, 10) || 30)} className="w-full bg-zinc-900 p-1.5 rounded border border-zinc-700 text-sm mt-1 outline-none font-mono text-white" />
+                </div>
+                <div>
+                  <label className="text-[10px] text-zinc-400">Rotation (Degrees)</label>
+                  <input type="number" value={selectedComponent.entityRotation || 0} onChange={(e) => updateSelectedComponent('entityRotation', parseInt(e.target.value, 10) || 0)} disabled={selectedComponent.entityFollowMouse !== false} className="w-full bg-zinc-950 p-1 rounded border border-zinc-700 text-xs text-center font-mono outline-none text-white disabled:opacity-40" />
+                </div>
+              </div>
+              <div>
+                <label className="flex items-center gap-2 text-xs cursor-pointer select-none">
+                  <input type="checkbox" checked={selectedComponent.entityFollowMouse !== false} onChange={(e) => updateSelectedComponent('entityFollowMouse', e.target.checked)} className="rounded bg-zinc-950 border-zinc-700 accent-emerald-500" />
+                  Entity Follows Mouse
+                </label>
+              </div>
+            </div>
+          )}
+
           {/* PROPRIÉTÉ TEXTE TRANSLATABLE : BOUTONS, LABELS ET HOVER AREAS */}
           {(selectedComponent.type === 'Button' || selectedComponent.type === 'Label' || selectedComponent.type === 'HoverArea') && (
             <div className="flex flex-col gap-1.5">
@@ -147,7 +200,19 @@ export default function PropertiesInspector({
             </div>
           )}
 
-          {/* EDIT BOX (Avec Translation Key pour le Hint) */}
+          {/* IMAGE TINT (Couleur additionnelle sur l'image) */}
+          {selectedComponent.type === 'Image' && (
+            <div className="mt-1">
+              <label className="text-xs text-zinc-400">Tint Color (Java Hex)</label>
+              <div className="flex gap-2 mt-1">
+                <input type="text" value={selectedComponent.color || "0xFFFFFFFF"} onChange={(e) => updateSelectedComponent('color', e.target.value)} className="w-full bg-zinc-900 p-1.5 rounded border border-zinc-700 text-sm text-purple-300 outline-none font-mono" placeholder="0xFFFFFFFF" />
+                <input type="color" value={getHtmlColor(selectedComponent.color || "0xFFFFFFFF")} onChange={(e) => handleColorPick(e, 'color', selectedComponent.color || "0xFFFFFFFF")} className="w-9 h-auto p-0.5 border border-zinc-700 rounded bg-zinc-900 cursor-pointer" title="Pick a tint color" />
+              </div>
+              <span className="text-[9px] text-zinc-500 block mt-1 leading-tight">Default is 0xFFFFFFFF (No Tint). Change ARGB to apply a color filter via guiGraphics.setColor in Java.</span>
+            </div>
+          )}
+
+          {/* EDIT BOX */}
           {selectedComponent.type === 'EditBox' && (
             <div className="flex flex-col gap-1.5">
               <div className="flex items-center gap-2">
@@ -187,11 +252,11 @@ export default function PropertiesInspector({
           <div className="grid grid-cols-2 gap-2">
             <div>
               <label className="text-xs text-zinc-400">Width (Largeur)</label>
-              <input type="number" value={selectedComponent.width} disabled={selectedComponent.type === 'PlayerInventory'} onChange={(e) => updateSelectedComponent('width', parseInt(e.target.value, 10) || 0)} className="w-full bg-zinc-900 p-1.5 rounded border border-zinc-700 text-sm mt-1 outline-none disabled:opacity-40 text-white font-mono" />
+              <input type="number" value={selectedComponent.width} disabled={selectedComponent.type === 'PlayerInventory' || selectedComponent.type === 'ItemDisplay' || selectedComponent.type === 'InputSlot' || selectedComponent.type === 'OutputSlot'} onChange={(e) => updateSelectedComponent('width', parseInt(e.target.value, 10) || 0)} className="w-full bg-zinc-900 p-1.5 rounded border border-zinc-700 text-sm mt-1 outline-none disabled:opacity-40 text-white font-mono" />
             </div>
             <div>
               <label className="text-xs text-zinc-400">Height (Hauteur)</label>
-              <input type="number" value={selectedComponent.height} disabled={selectedComponent.type === 'PlayerInventory'} onChange={(e) => updateSelectedComponent('height', parseInt(e.target.value, 10) || 0)} className="w-full bg-zinc-900 p-1.5 rounded border border-zinc-700 text-sm mt-1 outline-none disabled:opacity-40 text-white font-mono" />
+              <input type="number" value={selectedComponent.height} disabled={selectedComponent.type === 'PlayerInventory' || selectedComponent.type === 'ItemDisplay' || selectedComponent.type === 'InputSlot' || selectedComponent.type === 'OutputSlot'} onChange={(e) => updateSelectedComponent('height', parseInt(e.target.value, 10) || 0)} className="w-full bg-zinc-900 p-1.5 rounded border border-zinc-700 text-sm mt-1 outline-none disabled:opacity-40 text-white font-mono" />
             </div>
           </div>
 
@@ -384,7 +449,7 @@ export default function PropertiesInspector({
                         {loadedAssets.map(a => <option key={a.minecraftPath} value={a.minecraftPath}>{a.name}</option>)}
                       </select>
                     ) : (
-                      <input type="text" value={selectedComponent.bgTexture || ""} onChange={(e) => updateSelectedComponent('bgTexture', e.target.value)} className="w-full bg-zinc-950 p-1 rounded border border-zinc-800 text-[10px] font-mono outline-none text-amber-400" placeholder="modid:textures/gui/pb_bg.png" />
+                      <input type="text" value={selectedComponent.bgTexture || ""} onChange={(e) => updateSelectedComponent('bgTexture', e.target.value)} className="w-full bg-zinc-950 p-1 rounded border border-zinc-700 text-[10px] font-mono outline-none text-amber-400" placeholder="modid:textures/gui/pb_bg.png" />
                     )}
 
                     <label className="text-[10px] text-zinc-400">Fill (Progress) Texture:</label>
@@ -394,7 +459,7 @@ export default function PropertiesInspector({
                         {loadedAssets.map(a => <option key={a.minecraftPath} value={a.minecraftPath}>{a.name}</option>)}
                       </select>
                     ) : (
-                      <input type="text" value={selectedComponent.fillTexture || ""} onChange={(e) => updateSelectedComponent('fillTexture', e.target.value)} className="w-full bg-zinc-950 p-1 rounded border border-zinc-800 text-[10px] font-mono outline-none text-amber-400" placeholder="modid:textures/gui/pb_fill.png" />
+                      <input type="text" value={selectedComponent.fillTexture || ""} onChange={(e) => updateSelectedComponent('fillTexture', e.target.value)} className="w-full bg-zinc-950 p-1 rounded border border-zinc-700 text-[10px] font-mono outline-none text-amber-400" placeholder="modid:textures/gui/pb_fill.png" />
                     )}
                   </div>
                 )}
@@ -433,9 +498,7 @@ export default function PropertiesInspector({
                   <label className="text-[11px] text-zinc-400">Use Translation Key</label>
                 </div>
                 <div>
-                  <label className="text-xs text-zinc-400">
-                    {selectedComponent.isTranslatable ? 'Slider Translation Key' : 'Slider Display Title'}
-                  </label>
+                  <label className="text-xs text-zinc-400">{selectedComponent.isTranslatable ? 'Slider Translation Key' : 'Slider Display Title'}</label>
                   <input 
                     type="text" 
                     value={selectedComponent.text || "Slider"} 
@@ -488,7 +551,7 @@ export default function PropertiesInspector({
                         {loadedAssets.map(a => <option key={a.minecraftPath} value={a.minecraftPath}>{a.name}</option>)}
                       </select>
                     ) : (
-                      <input type="text" value={selectedComponent.sliderTrackTex || ""} onChange={(e) => updateSelectedComponent('sliderTrackTex', e.target.value)} className="w-full bg-zinc-950 p-1 rounded border border-zinc-800 text-[10px] font-mono outline-none text-amber-400" placeholder="modid:textures/gui/slider_track.png" />
+                      <input type="text" value={selectedComponent.sliderTrackTex || ""} onChange={(e) => updateSelectedComponent('sliderTrackTex', e.target.value)} className="w-full bg-zinc-950 p-1 rounded border border-zinc-700 text-[10px] font-mono outline-none text-amber-400" placeholder="modid:textures/gui/slider_track.png" />
                     )}
 
                     <label className="text-[10px] text-zinc-400">Thumb (Puce) Texture:</label>
