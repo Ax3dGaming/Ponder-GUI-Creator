@@ -254,7 +254,11 @@ export default function App() {
       entityRotationX: 0,
       entityRotationY: 0,
       entityRotationZ: 0,
-      entityFollowMouse: true
+      entityFollowMouse: true,
+      
+      // === NOUVEAU : SYSTÈME D'ACTIONS ===
+      actionType: 'NONE', // NONE, OPEN_SCREEN, CLOSE_SCREEN, PRINT_CONSOLE, UPDATE_LABEL
+      actionTarget: ''
     };
     setComponents([...components, newComponent]);
   };
@@ -403,10 +407,6 @@ export default function App() {
           {comp.type === 'HoverArea' && (displayText || 'Hover Tooltip Area')}
           {comp.type === 'ImageButton' && !associatedAsset && "IMG BTN"}
           {comp.type === 'Image' && !associatedAsset && "IMAGE"}
-          {comp.type === 'Label' && displayText}
-          {comp.type === 'EditBox' && (displayHint || 'Text field')}
-          {comp.type === 'InputSlot' && "IN"}
-          {comp.type === 'OutputSlot' && "OUT"}
           {comp.type === 'ItemDisplay' && (
             <div style={{ transform: `scale(${comp.itemScale || 1}) rotateX(${comp.itemRotationX || 0}deg) rotateY(${comp.itemRotationY || 0}deg) rotateZ(${comp.itemRotationZ || 0}deg)` }}>
               🍎
@@ -419,6 +419,10 @@ export default function App() {
               {!comp.entityFollowMouse && <span className="opacity-60">R:{comp.entityRotationY}°</span>}
             </div>
           )}
+          {comp.type === 'Label' && displayText}
+          {comp.type === 'EditBox' && (displayHint || 'Text field')}
+          {comp.type === 'InputSlot' && "IN"}
+          {comp.type === 'OutputSlot' && "OUT"}
         </span>
         
         {comp.type === 'ProgressBar' && (

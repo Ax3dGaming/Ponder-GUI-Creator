@@ -93,6 +93,64 @@ export default function PropertiesInspector({
             <div className="text-xs text-emerald-400 bg-zinc-900 p-2 rounded mt-1 select-all font-mono break-all">{selectedComponent.id}</div>
           </div>
 
+          {/* === ACTIONS ET ÉVÈNEMENTS === */}
+          {(selectedComponent.type === 'Button' || selectedComponent.type === 'ImageButton') && (
+            <div className="flex flex-col gap-2 bg-zinc-900 p-2.5 rounded border border-zinc-700 mt-1">
+              <span className="text-xs font-semibold text-zinc-400 uppercase">Click Action</span>
+              <select
+                value={selectedComponent.actionType || 'NONE'}
+                onChange={(e) => updateSelectedComponent('actionType', e.target.value)}
+                className="w-full bg-zinc-950 p-1.5 rounded border border-zinc-700 text-xs outline-none font-mono text-emerald-400"
+              >
+                <option value="NONE">None (Manual later)</option>
+                <option value="OPEN_SCREEN">Open Another Screen</option>
+                <option value="CLOSE_SCREEN">Close Current Screen</option>
+                <option value="PRINT_CONSOLE">Print to Console</option>
+              </select>
+
+              {selectedComponent.actionType === 'OPEN_SCREEN' && (
+                <div>
+                  <label className="text-[10px] text-zinc-400">Target Screen Class Name:</label>
+                  <input type="text" value={selectedComponent.actionTarget || ''} onChange={(e) => updateSelectedComponent('actionTarget', e.target.value)} className="w-full bg-zinc-950 p-1.5 rounded border border-zinc-700 text-xs outline-none text-white font-mono mt-1" placeholder="MyOtherScreen" />
+                </div>
+              )}
+              {selectedComponent.actionType === 'PRINT_CONSOLE' && (
+                <div>
+                  <label className="text-[10px] text-zinc-400">Message to print:</label>
+                  <input type="text" value={selectedComponent.actionTarget || ''} onChange={(e) => updateSelectedComponent('actionTarget', e.target.value)} className="w-full bg-zinc-950 p-1.5 rounded border border-zinc-700 text-xs outline-none text-white font-sans mt-1" placeholder="Button clicked!" />
+                </div>
+              )}
+            </div>
+          )}
+
+          {selectedComponent.type === 'EditBox' && (
+            <div className="flex flex-col gap-2 bg-zinc-900 p-2.5 rounded border border-zinc-700 mt-1">
+              <span className="text-xs font-semibold text-zinc-400 uppercase">On Text Change Action</span>
+              <select
+                value={selectedComponent.actionType || 'NONE'}
+                onChange={(e) => updateSelectedComponent('actionType', e.target.value)}
+                className="w-full bg-zinc-950 p-1.5 rounded border border-zinc-700 text-xs outline-none font-mono text-emerald-400"
+              >
+                <option value="NONE">None</option>
+                <option value="UPDATE_LABEL">Live Update Label</option>
+                <option value="PRINT_CONSOLE">Print to Console</option>
+              </select>
+
+              {selectedComponent.actionType === 'UPDATE_LABEL' && (
+                <div>
+                  <label className="text-[10px] text-zinc-400">Target Label ID:</label>
+                  <input type="text" value={selectedComponent.actionTarget || ''} onChange={(e) => updateSelectedComponent('actionTarget', e.target.value)} className="w-full bg-zinc-950 p-1.5 rounded border border-zinc-700 text-xs outline-none text-white font-mono mt-1" placeholder="label_123456" />
+                </div>
+              )}
+              {selectedComponent.actionType === 'PRINT_CONSOLE' && (
+                <div className="text-[10px] text-zinc-500 italic mt-1">
+                  Will continuously print the EditBox string content to the console on every keystroke.
+                </div>
+              )}
+            </div>
+          )}
+          {/* ============================= */}
+
           {/* ITEM DISPLAY PROPERTIES */}
           {selectedComponent.type === 'ItemDisplay' && (
             <div className="flex flex-col gap-2">
@@ -136,7 +194,7 @@ export default function PropertiesInspector({
                 </div>
                 <div>
                   <label className="text-[10px] text-zinc-400">Rotation (Degrees)</label>
-                  <input type="number" value={selectedComponent.entityRotation || 0} onChange={(e) => updateSelectedComponent('entityRotation', parseInt(e.target.value, 10) || 0)} disabled={selectedComponent.entityFollowMouse !== false} className="w-full bg-zinc-950 p-1 rounded border border-zinc-700 text-xs text-center font-mono outline-none text-white disabled:opacity-40" />
+                  <input type="number" value={selectedComponent.entityRotationY || 0} onChange={(e) => updateSelectedComponent('entityRotationY', parseInt(e.target.value, 10) || 0)} disabled={selectedComponent.entityFollowMouse !== false} className="w-full bg-zinc-950 p-1 rounded border border-zinc-700 text-xs text-center font-mono outline-none text-white disabled:opacity-40" />
                 </div>
               </div>
               <div>
@@ -145,6 +203,26 @@ export default function PropertiesInspector({
                   Entity Follows Mouse
                 </label>
               </div>
+              
+              {!selectedComponent.entityFollowMouse && (
+                <>
+                  <span className="text-[11px] text-zinc-400 font-bold uppercase mt-1">Static 3D Rotation</span>
+                  <div className="grid grid-cols-3 gap-1">
+                    <div>
+                      <label className="text-[10px] text-zinc-500 block text-center">Axis X</label>
+                      <input type="number" value={selectedComponent.entityRotationX || 0} onChange={(e) => updateSelectedComponent('entityRotationX', parseInt(e.target.value, 10) || 0)} className="w-full bg-zinc-950 p-1 rounded border border-zinc-700 text-xs text-center font-mono outline-none text-white" />
+                    </div>
+                    <div>
+                      <label className="text-[10px] text-zinc-500 block text-center">Axis Y</label>
+                      <input type="number" value={selectedComponent.entityRotationY || 0} onChange={(e) => updateSelectedComponent('entityRotationY', parseInt(e.target.value, 10) || 0)} className="w-full bg-zinc-950 p-1 rounded border border-zinc-700 text-xs text-center font-mono outline-none text-white" />
+                    </div>
+                    <div>
+                      <label className="text-[10px] text-zinc-500 block text-center">Axis Z</label>
+                      <input type="number" value={selectedComponent.entityRotationZ || 0} onChange={(e) => updateSelectedComponent('entityRotationZ', parseInt(e.target.value, 10) || 0)} className="w-full bg-zinc-950 p-1 rounded border border-zinc-700 text-xs text-center font-mono outline-none text-white" />
+                    </div>
+                  </div>
+                </>
+              )}
             </div>
           )}
 
@@ -212,7 +290,7 @@ export default function PropertiesInspector({
             </div>
           )}
 
-          {/* EDIT BOX */}
+          {/* EDIT BOX (Avec Translation Key pour le Hint) */}
           {selectedComponent.type === 'EditBox' && (
             <div className="flex flex-col gap-1.5">
               <div className="flex items-center gap-2">
@@ -252,11 +330,11 @@ export default function PropertiesInspector({
           <div className="grid grid-cols-2 gap-2">
             <div>
               <label className="text-xs text-zinc-400">Width (Largeur)</label>
-              <input type="number" value={selectedComponent.width} disabled={selectedComponent.type === 'PlayerInventory' || selectedComponent.type === 'ItemDisplay' || selectedComponent.type === 'InputSlot' || selectedComponent.type === 'OutputSlot'} onChange={(e) => updateSelectedComponent('width', parseInt(e.target.value, 10) || 0)} className="w-full bg-zinc-900 p-1.5 rounded border border-zinc-700 text-sm mt-1 outline-none disabled:opacity-40 text-white font-mono" />
+              <input type="number" value={selectedComponent.width} disabled={['PlayerInventory', 'ItemDisplay', 'InputSlot', 'OutputSlot'].includes(selectedComponent.type)} onChange={(e) => updateSelectedComponent('width', parseInt(e.target.value, 10) || 0)} className="w-full bg-zinc-900 p-1.5 rounded border border-zinc-700 text-sm mt-1 outline-none disabled:opacity-40 text-white font-mono" />
             </div>
             <div>
               <label className="text-xs text-zinc-400">Height (Hauteur)</label>
-              <input type="number" value={selectedComponent.height} disabled={selectedComponent.type === 'PlayerInventory' || selectedComponent.type === 'ItemDisplay' || selectedComponent.type === 'InputSlot' || selectedComponent.type === 'OutputSlot'} onChange={(e) => updateSelectedComponent('height', parseInt(e.target.value, 10) || 0)} className="w-full bg-zinc-900 p-1.5 rounded border border-zinc-700 text-sm mt-1 outline-none disabled:opacity-40 text-white font-mono" />
+              <input type="number" value={selectedComponent.height} disabled={['PlayerInventory', 'ItemDisplay', 'InputSlot', 'OutputSlot'].includes(selectedComponent.type)} onChange={(e) => updateSelectedComponent('height', parseInt(e.target.value, 10) || 0)} className="w-full bg-zinc-900 p-1.5 rounded border border-zinc-700 text-sm mt-1 outline-none disabled:opacity-40 text-white font-mono" />
             </div>
           </div>
 
@@ -449,7 +527,7 @@ export default function PropertiesInspector({
                         {loadedAssets.map(a => <option key={a.minecraftPath} value={a.minecraftPath}>{a.name}</option>)}
                       </select>
                     ) : (
-                      <input type="text" value={selectedComponent.bgTexture || ""} onChange={(e) => updateSelectedComponent('bgTexture', e.target.value)} className="w-full bg-zinc-950 p-1 rounded border border-zinc-700 text-[10px] font-mono outline-none text-amber-400" placeholder="modid:textures/gui/pb_bg.png" />
+                      <input type="text" value={selectedComponent.bgTexture || ""} onChange={(e) => updateSelectedComponent('bgTexture', e.target.value)} className="w-full bg-zinc-950 p-1 rounded border border-zinc-800 text-[10px] font-mono outline-none text-amber-400" placeholder="modid:textures/gui/pb_bg.png" />
                     )}
 
                     <label className="text-[10px] text-zinc-400">Fill (Progress) Texture:</label>
@@ -459,7 +537,7 @@ export default function PropertiesInspector({
                         {loadedAssets.map(a => <option key={a.minecraftPath} value={a.minecraftPath}>{a.name}</option>)}
                       </select>
                     ) : (
-                      <input type="text" value={selectedComponent.fillTexture || ""} onChange={(e) => updateSelectedComponent('fillTexture', e.target.value)} className="w-full bg-zinc-950 p-1 rounded border border-zinc-700 text-[10px] font-mono outline-none text-amber-400" placeholder="modid:textures/gui/pb_fill.png" />
+                      <input type="text" value={selectedComponent.fillTexture || ""} onChange={(e) => updateSelectedComponent('fillTexture', e.target.value)} className="w-full bg-zinc-950 p-1 rounded border border-zinc-800 text-[10px] font-mono outline-none text-amber-400" placeholder="modid:textures/gui/pb_fill.png" />
                     )}
                   </div>
                 )}
@@ -498,7 +576,9 @@ export default function PropertiesInspector({
                   <label className="text-[11px] text-zinc-400">Use Translation Key</label>
                 </div>
                 <div>
-                  <label className="text-xs text-zinc-400">{selectedComponent.isTranslatable ? 'Slider Translation Key' : 'Slider Display Title'}</label>
+                  <label className="text-xs text-zinc-400">
+                    {selectedComponent.isTranslatable ? 'Slider Translation Key' : 'Slider Display Title'}
+                  </label>
                   <input 
                     type="text" 
                     value={selectedComponent.text || "Slider"} 
@@ -551,7 +631,7 @@ export default function PropertiesInspector({
                         {loadedAssets.map(a => <option key={a.minecraftPath} value={a.minecraftPath}>{a.name}</option>)}
                       </select>
                     ) : (
-                      <input type="text" value={selectedComponent.sliderTrackTex || ""} onChange={(e) => updateSelectedComponent('sliderTrackTex', e.target.value)} className="w-full bg-zinc-950 p-1 rounded border border-zinc-700 text-[10px] font-mono outline-none text-amber-400" placeholder="modid:textures/gui/slider_track.png" />
+                      <input type="text" value={selectedComponent.sliderTrackTex || ""} onChange={(e) => updateSelectedComponent('sliderTrackTex', e.target.value)} className="w-full bg-zinc-950 p-1 rounded border border-zinc-800 text-[10px] font-mono outline-none text-amber-400" placeholder="modid:textures/gui/slider_track.png" />
                     )}
 
                     <label className="text-[10px] text-zinc-400">Thumb (Puce) Texture:</label>

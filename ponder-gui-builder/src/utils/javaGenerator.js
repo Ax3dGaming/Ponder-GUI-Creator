@@ -101,6 +101,17 @@ export const generateJavaCode = (guiConfig, components) => {
       return comp.isTranslatable ? `Component.translatable("${comp.text}")` : `Component.literal("${comp.text}")`;
   };
 
+  const getButtonActionCode = (comp) => {
+      if (comp.actionType === 'OPEN_SCREEN' && comp.actionTarget) {
+          return `net.minecraft.client.Minecraft.getInstance().setScreen(new ${comp.actionTarget}(/* TODO: Add required constructor arguments */));`;
+      } else if (comp.actionType === 'CLOSE_SCREEN') {
+          return `this.onClose();`;
+      } else if (comp.actionType === 'PRINT_CONSOLE' && comp.actionTarget) {
+          return `System.out.println("${comp.actionTarget.replace(/"/g, '\\"')}");`;
+      }
+      return `// Click Action`;
+  };
+
   components.forEach(comp => {
     const posX = comp.parentId ? `${comp.x}` : `this.leftPos + ${comp.x}`;
     const posY = comp.parentId ? `${comp.y}` : `this.topPos + ${comp.y}`;
@@ -146,11 +157,7 @@ export const generateJavaCode = (guiConfig, components) => {
         const eZ = comp.entityRotationZ || 0;
 
         let entityRender = `        if (this.entity_${comp.id} != null) {\n`;
-        if (!follow) {
-            entityRender += `            guiGraphics.pose().pushPose();\n`;
-            if (eZ !== 0) entityRender += `            guiGraphics.pose().mulPose(com.mojang.math.Axis.ZP.rotationDegrees(${eZ}f));\n`;
-        }
-
+        
         entityRender += `            int posX = ${posX} + ${Math.round(comp.width / 2)};\n`;
         entityRender += `            int posY = ${posY} + ${comp.height};\n`;
         entityRender += `            int scale = ${comp.entityScale || 30};\n\n`;
@@ -173,6 +180,11 @@ export const generateJavaCode = (guiConfig, components) => {
         entityRender += `            org.joml.Quaternionf quaternionf = (new org.joml.Quaternionf()).rotationZ((float)Math.PI);\n`;
         entityRender += `            org.joml.Quaternionf quaternionf1 = (new org.joml.Quaternionf()).rotationX(this.entity_${comp.id}.getXRot() * ((float)Math.PI / 180F));\n`;
         entityRender += `            quaternionf.mul(quaternionf1);\n\n`;
+
+        if (!follow && eZ !== 0) {
+            entityRender += `            org.joml.Quaternionf quaternionfZ = (new org.joml.Quaternionf()).rotationZ(${eZ}F * ((float)Math.PI / 180F));\n`;
+            entityRender += `            quaternionf.mul(quaternionfZ);\n\n`;
+        }
         
         entityRender += `            net.minecraft.client.gui.screens.inventory.InventoryScreen.renderEntityInInventory(\n`;
         entityRender += `                    guiGraphics,\n`;
@@ -185,9 +197,6 @@ export const generateJavaCode = (guiConfig, components) => {
         entityRender += `                    this.entity_${comp.id}\n`;
         entityRender += `            );\n`;
 
-        if (!follow) {
-            entityRender += `            guiGraphics.pose().popPose();\n`;
-        }
         entityRender += `        }`;
         
         if (comp.parentId) {
@@ -217,18 +226,19 @@ export const generateJavaCode = (guiConfig, components) => {
         break;
 
       case 'Label':
+        fields.push(`    private net.minecraft.client.gui.components.StringWidget ${comp.id};`);
         componentInitString = `new net.minecraft.client.gui.components.StringWidget(${posX}, ${posY}, ${comp.width}, ${comp.height}, ${getTextComponent(comp)}, this.font).setColor(${comp.color || '0xFFFFFF'})`;
         if (comp.parentId) {
             if (!scrollPanelChildrenMap[comp.parentId]) scrollPanelChildrenMap[comp.parentId] = [];
-            scrollPanelChildrenMap[comp.parentId].push(`        this.${comp.parentId}.addWidget(${componentInitString});`);
+            scrollPanelChildrenMap[comp.parentId].push(`        this.${comp.id} = ${componentInitString};\n        this.${comp.parentId}.addWidget(this.${comp.id});`);
         } else {
-            initCode.push(`        // Label: ${comp.id}\n        this.addRenderableOnly(${componentInitString});`);
+            initCode.push(`        // Label: ${comp.id}\n        this.${comp.id} = ${componentInitString};\n        this.addRenderableOnly(this.${comp.id});`);
         }
         break;
 
       case 'Button':
         fields.push(`    private net.minecraft.client.gui.components.Button ${comp.id};`);
-        componentInitString = `net.minecraft.client.gui.components.Button.builder(${getTextComponent(comp)}, button -> {\n            // Click Action\n        }).bounds(${posX}, ${posY}, ${comp.width}, ${comp.height}).build()`;
+        componentInitString = `net.minecraft.client.gui.components.Button.builder(${getTextComponent(comp)}, button -> {\n            ${getButtonActionCode(comp)}\n        }).bounds(${posX}, ${posY}, ${comp.width}, ${comp.height}).build()`;
         
         if (comp.parentId) {
             if (!scrollPanelChildrenMap[comp.parentId]) scrollPanelChildrenMap[comp.parentId] = [];
@@ -339,7 +349,7 @@ export const generateJavaCode = (guiConfig, components) => {
 
       case 'ImageButton':
         fields.push(`    private net.minecraft.client.gui.components.ImageButton ${comp.id};`);
-        componentInitString = `new net.minecraft.client.gui.components.ImageButton(${posX}, ${posY}, ${comp.width}, ${comp.height}, new net.minecraft.client.gui.components.WidgetSprites(net.minecraft.resources.ResourceLocation.parse("${comp.texture || 'pondertestgui:textures/gui/widgets.png'}")), button -> {\n            // Click Action\n        })`;
+        componentInitString = `new net.minecraft.client.gui.components.ImageButton(${posX}, ${posY}, ${comp.width}, ${comp.height}, new net.minecraft.client.gui.components.WidgetSprites(net.minecraft.resources.ResourceLocation.parse("${comp.texture || 'pondertestgui:textures/gui/widgets.png'}")), button -> {\n            ${getButtonActionCode(comp)}\n        })`;
         
         if (comp.parentId) {
             if (!scrollPanelChildrenMap[comp.parentId]) scrollPanelChildrenMap[comp.parentId] = [];
@@ -354,11 +364,18 @@ export const generateJavaCode = (guiConfig, components) => {
         const hintComp = comp.isTranslatable ? `Component.translatable("${comp.placeholder}")` : `Component.literal("${comp.placeholder}")`;
         componentInitString = `new net.minecraft.client.gui.components.EditBox(this.font, ${posX}, ${posY}, ${comp.width}, ${comp.height}, ${hintComp})`;
         
+        let responderCode = "";
+        if (comp.actionType === 'UPDATE_LABEL' && comp.actionTarget) {
+            responderCode = `\n        this.${comp.id}.setResponder(text -> { if (this.${comp.actionTarget} != null) this.${comp.actionTarget}.setMessage(Component.literal(text)); });`;
+        } else if (comp.actionType === 'PRINT_CONSOLE') {
+            responderCode = `\n        this.${comp.id}.setResponder(text -> System.out.println("${comp.id} changed: " + text));`;
+        }
+
         if (comp.parentId) {
             if (!scrollPanelChildrenMap[comp.parentId]) scrollPanelChildrenMap[comp.parentId] = [];
-            scrollPanelChildrenMap[comp.parentId].push(`        this.${comp.id} = ${componentInitString};\n        this.${comp.id}.setHint(${hintComp});\n        this.${comp.parentId}.addWidget(this.${comp.id});`);
+            scrollPanelChildrenMap[comp.parentId].push(`        this.${comp.id} = ${componentInitString};\n        this.${comp.id}.setHint(${hintComp});${responderCode}\n        this.${comp.parentId}.addWidget(this.${comp.id});`);
         } else {
-            initCode.push(`        // EditBox: ${comp.id}\n        this.${comp.id} = ${componentInitString};\n        this.${comp.id}.setHint(${hintComp});\n        this.addRenderableWidget(this.${comp.id});`);
+            initCode.push(`        // EditBox: ${comp.id}\n        this.${comp.id} = ${componentInitString};\n        this.${comp.id}.setHint(${hintComp});${responderCode}\n        this.addRenderableWidget(this.${comp.id});`);
         }
         break;
 
@@ -436,13 +453,16 @@ export const generateJavaCode = (guiConfig, components) => {
     }
   });
 
-  let mouseListenersCode = "";
+  // GESTION MAGIQUE DES TOUCHES (Bloquer la touche E si une EditBox est sélectionnée)
+  let editBoxIds = components.filter(c => c.type === 'EditBox').map(c => c.id);
+  let editBoxChecks = editBoxIds.length > 0 ? editBoxIds.map(id => `this.${id} != null && this.${id}.isFocused()`).join(' || ') : 'false';
+
   let scrollCalls = scrollPanelIds.map(id => `        if (this.${id}.mouseScrolled(mouseX, mouseY, scrollX, scrollY)) return true;`).join('\n');
   let clickCalls = scrollPanelIds.map(id => `        if (this.${id}.mouseClicked(mouseX, mouseY, button)) { this.setFocused(this.${id}); return true; }`).join('\n');
   let releaseCalls = scrollPanelIds.map(id => `        if (this.${id}.mouseReleased(mouseX, mouseY, button)) return true;`).join('\n');
   let dragCalls = scrollPanelIds.map(id => `        if (this.${id}.mouseDragged(mouseX, mouseY, button, dragX, dragY)) return true;`).join('\n');
 
-  mouseListenersCode = `
+  let mouseListenersCode = `
     @Override
     public boolean mouseScrolled(double mouseX, double mouseY, double scrollX, double scrollY) {
         ${scrollCalls.length > 0 ? scrollCalls : ''}
@@ -465,6 +485,22 @@ export const generateJavaCode = (guiConfig, components) => {
     public boolean mouseDragged(double mouseX, double mouseY, int button, double dragX, double dragY) {
         ${dragCalls.length > 0 ? dragCalls : ''}
         return super.mouseDragged(mouseX, mouseY, button, dragX, dragY);
+    }
+
+    @Override
+    public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
+        boolean isEditBoxFocused = ${editBoxChecks};
+        if (isEditBoxFocused) {
+            if (this.getFocused() != null && this.getFocused().keyPressed(keyCode, scanCode, modifiers)) {
+                return true;
+            }
+            if (keyCode == 256) { // Escape
+                this.onClose();
+                return true;
+            }
+            return true; // Empêche AbstractContainerScreen de fermer le GUI avec la touche Inventaire
+        }
+        return super.keyPressed(keyCode, scanCode, modifiers);
     }`;
 
   let labelsHideCode = "";
