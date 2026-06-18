@@ -108,6 +108,15 @@ export const generateJavaCode = (guiConfig, components) => {
           return `this.onClose();`;
       } else if (comp.actionType === 'PRINT_CONSOLE' && comp.actionTarget) {
           return `System.out.println("${comp.actionTarget.replace(/"/g, '\\"')}");`;
+      } else if (comp.actionType === 'PLAY_SOUND') {
+          const soundTarget = comp.actionTarget ? `net.minecraft.sounds.SoundEvent.createVariableRangeEvent(net.minecraft.resources.ResourceLocation.parse("${comp.actionTarget}"))` : `net.minecraft.sounds.SoundEvents.UI_BUTTON_CLICK.value()`;
+          return `net.minecraft.client.Minecraft.getInstance().getSoundManager().play(net.minecraft.client.resources.sounds.SimpleSoundInstance.forUI(${soundTarget}, 1.0F));`;
+      } else if (comp.actionType === 'OPEN_URL' && comp.actionTarget) {
+          return `net.minecraft.client.Minecraft.getInstance().setScreen(new net.minecraft.client.gui.screens.ConfirmLinkScreen(open -> { if (open) net.minecraft.Util.getPlatform().openUri("${comp.actionTarget}"); this.minecraft.setScreen(this); }, "${comp.actionTarget}", true));`;
+      } else if (comp.actionType === 'TOGGLE_VISIBILITY' && comp.actionTarget) {
+          return `if (this.${comp.actionTarget} != null) this.${comp.actionTarget}.visible = !this.${comp.actionTarget}.visible;`;
+      } else if (comp.actionType === 'SEND_PACKET') {
+          return `// TODO: Send packet to server\n            // ModMessages.sendToServer(new ${comp.actionTarget || 'CustomPacket'}());`;
       }
       return `// Click Action`;
   };
@@ -120,17 +129,17 @@ export const generateJavaCode = (guiConfig, components) => {
 
     switch (comp.type) {
       case 'ItemDisplay':
-        const scaleItem = comp.itemScale !== undefined ? comp.itemScale : 1.0;
-        const rX = comp.itemRotationX || 0;
-        const rY = comp.itemRotationY || 0;
-        const rZ = comp.itemRotationZ || 0;
+        fields.push(`    private float scale_${comp.id} = ${comp.itemScale !== undefined ? comp.itemScale : 1.0}f;`);
+        fields.push(`    private float rotX_${comp.id} = ${comp.itemRotationX || 0}f;`);
+        fields.push(`    private float rotY_${comp.id} = ${comp.itemRotationY || 0}f;`);
+        fields.push(`    private float rotZ_${comp.id} = ${comp.itemRotationZ || 0}f;`);
         
         let itemRenderCode = `        guiGraphics.pose().pushPose();\n`;
         itemRenderCode += `        guiGraphics.pose().translate(${posX} + 8.0f, ${posY} + 8.0f, 0.0f);\n`;
-        if (scaleItem !== 1.0) itemRenderCode += `        guiGraphics.pose().scale(${scaleItem}f, ${scaleItem}f, 1.0f);\n`;
-        if (rX !== 0) itemRenderCode += `        guiGraphics.pose().mulPose(com.mojang.math.Axis.XP.rotationDegrees(${rX}f));\n`;
-        if (rY !== 0) itemRenderCode += `        guiGraphics.pose().mulPose(com.mojang.math.Axis.YP.rotationDegrees(${rY}f));\n`;
-        if (rZ !== 0) itemRenderCode += `        guiGraphics.pose().mulPose(com.mojang.math.Axis.ZP.rotationDegrees(${rZ}f));\n`;
+        itemRenderCode += `        if (this.scale_${comp.id} != 1.0f) guiGraphics.pose().scale(this.scale_${comp.id}, this.scale_${comp.id}, 1.0f);\n`;
+        itemRenderCode += `        if (this.rotX_${comp.id} != 0) guiGraphics.pose().mulPose(com.mojang.math.Axis.XP.rotationDegrees(this.rotX_${comp.id}));\n`;
+        itemRenderCode += `        if (this.rotY_${comp.id} != 0) guiGraphics.pose().mulPose(com.mojang.math.Axis.YP.rotationDegrees(this.rotY_${comp.id}));\n`;
+        itemRenderCode += `        if (this.rotZ_${comp.id} != 0) guiGraphics.pose().mulPose(com.mojang.math.Axis.ZP.rotationDegrees(this.rotZ_${comp.id}));\n`;
         itemRenderCode += `        guiGraphics.renderFakeItem(new ItemStack(net.minecraft.core.registries.BuiltInRegistries.ITEM.get(net.minecraft.resources.ResourceLocation.parse("${comp.item}"))), -8, -8);\n`;
         itemRenderCode += `        guiGraphics.pose().popPose();`;
 
@@ -144,6 +153,10 @@ export const generateJavaCode = (guiConfig, components) => {
 
       case 'EntityDisplay':
         fields.push(`    private net.minecraft.world.entity.LivingEntity entity_${comp.id};`);
+        fields.push(`    private float scale_${comp.id} = ${comp.entityScale || 30}f;`);
+        fields.push(`    private float rotX_${comp.id} = ${comp.entityRotationX || 0}f;`);
+        fields.push(`    private float rotY_${comp.id} = ${comp.entityRotationY || 0}f;`);
+        fields.push(`    private float rotZ_${comp.id} = ${comp.entityRotationZ || 0}f;`);
         
         const entityInit = `        net.minecraft.world.entity.EntityType<?> type_${comp.id} = net.minecraft.core.registries.BuiltInRegistries.ENTITY_TYPE.get(net.minecraft.resources.ResourceLocation.parse("${comp.entity}"));\n` +
                            `        if (type_${comp.id} != null && this.minecraft != null && this.minecraft.level != null) {\n` +
@@ -152,15 +165,12 @@ export const generateJavaCode = (guiConfig, components) => {
         initCode.push(entityInit);
 
         const follow = comp.entityFollowMouse !== false;
-        const eX = comp.entityRotationX || 0;
-        const eY = comp.entityRotationY || 0;
-        const eZ = comp.entityRotationZ || 0;
 
         let entityRender = `        if (this.entity_${comp.id} != null) {\n`;
         
         entityRender += `            int posX = ${posX} + ${Math.round(comp.width / 2)};\n`;
         entityRender += `            int posY = ${posY} + ${comp.height};\n`;
-        entityRender += `            int scale = ${comp.entityScale || 30};\n\n`;
+        entityRender += `            int scale = (int) this.scale_${comp.id};\n\n`;
 
         if (follow) {
             entityRender += `            float mouseDeltaX = (float) (posX - mouseX);\n`;
@@ -169,9 +179,9 @@ export const generateJavaCode = (guiConfig, components) => {
             entityRender += `            this.entity_${comp.id}.setXRot(mouseDeltaY * 0.1F);\n`;
             entityRender += `            this.entity_${comp.id}.yBodyRot = 180.0F + mouseDeltaX * 0.02F;\n`;
         } else {
-            entityRender += `            this.entity_${comp.id}.setYRot(180.0F + ${eY}F);\n`;
-            entityRender += `            this.entity_${comp.id}.setXRot(${eX}F);\n`;
-            entityRender += `            this.entity_${comp.id}.yBodyRot = 180.0F + ${eY}F;\n`;
+            entityRender += `            this.entity_${comp.id}.setYRot(180.0F + this.rotY_${comp.id});\n`;
+            entityRender += `            this.entity_${comp.id}.setXRot(this.rotX_${comp.id});\n`;
+            entityRender += `            this.entity_${comp.id}.yBodyRot = 180.0F + this.rotY_${comp.id};\n`;
         }
 
         entityRender += `            this.entity_${comp.id}.yHeadRot = this.entity_${comp.id}.getYRot();\n`;
@@ -181,9 +191,11 @@ export const generateJavaCode = (guiConfig, components) => {
         entityRender += `            org.joml.Quaternionf quaternionf1 = (new org.joml.Quaternionf()).rotationX(this.entity_${comp.id}.getXRot() * ((float)Math.PI / 180F));\n`;
         entityRender += `            quaternionf.mul(quaternionf1);\n\n`;
 
-        if (!follow && eZ !== 0) {
-            entityRender += `            org.joml.Quaternionf quaternionfZ = (new org.joml.Quaternionf()).rotationZ(${eZ}F * ((float)Math.PI / 180F));\n`;
-            entityRender += `            quaternionf.mul(quaternionfZ);\n\n`;
+        if (!follow) {
+            entityRender += `            if (this.rotZ_${comp.id} != 0) {\n`;
+            entityRender += `                org.joml.Quaternionf quaternionfZ = (new org.joml.Quaternionf()).rotationZ(this.rotZ_${comp.id} * ((float)Math.PI / 180F));\n`;
+            entityRender += `                quaternionf.mul(quaternionfZ);\n`;
+            entityRender += `            }\n\n`;
         }
         
         entityRender += `            net.minecraft.client.gui.screens.inventory.InventoryScreen.renderEntityInInventory(\n`;
@@ -250,11 +262,11 @@ export const generateJavaCode = (guiConfig, components) => {
 
       case 'ProgressBar':
         fields.push(`    private net.minecraft.client.gui.components.AbstractWidget ${comp.id};`);
+        fields.push(`    private float val_${comp.id} = ${comp.currentVal}f;`);
         
         componentInitString = `new net.minecraft.client.gui.components.AbstractWidget(${posX}, ${posY}, ${comp.width}, ${comp.height}, Component.empty()) {\n` +
         `            private float min = ${comp.minVal}f;\n` +
-        `            private float max = ${comp.maxVal}f;\n` +
-        `            private float val = ${comp.currentVal}f;\n`;
+        `            private float max = ${comp.maxVal}f;\n`;
 
         if (comp.useCustomTextures && comp.bgTexture && comp.fillTexture) {
             componentInitString +=
@@ -262,7 +274,7 @@ export const generateJavaCode = (guiConfig, components) => {
             `            private final net.minecraft.resources.ResourceLocation fillTex = net.minecraft.resources.ResourceLocation.parse("${comp.fillTexture}");\n\n` +
             `            @Override\n` +
             `            public void renderWidget(net.minecraft.client.gui.GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {\n` +
-            `                float progress = Math.max(0.0f, Math.min(1.0f, (val - min) / (max - min)));\n` +
+            `                float progress = Math.max(0.0f, Math.min(1.0f, (val_${comp.id} - min) / (max - min)));\n` +
             `                int fgWidth = (int)(this.width * progress);\n` +
             `                guiGraphics.blit(bgTex, this.getX(), this.getY(), 0, 0, this.width, this.height, this.width, this.height);\n` +
             `                if (fgWidth > 0) {\n` +
@@ -275,7 +287,7 @@ export const generateJavaCode = (guiConfig, components) => {
             componentInitString +=
             `\n            @Override\n` +
             `            public void renderWidget(net.minecraft.client.gui.GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {\n` +
-            `                float progress = Math.max(0.0f, Math.min(1.0f, (val - min) / (max - min)));\n` +
+            `                float progress = Math.max(0.0f, Math.min(1.0f, (val_${comp.id} - min) / (max - min)));\n` +
             `                int fgWidth = (int)(this.width * progress);\n` +
             `                guiGraphics.fill(this.getX(), this.getY(), this.getX() + this.width, this.getY() + this.height, (int) Long.parseLong("${bgBarColor}".replace("0x", ""), 16));\n` +
             `                if (fgWidth > 0) {\n` +
@@ -318,6 +330,15 @@ export const generateJavaCode = (guiConfig, components) => {
             }
         }
 
+        let sliderApplyValueCode = ``;
+        if (comp.actionType === 'UPDATE_TARGET_SCALE' && comp.actionTarget) {
+            sliderApplyValueCode = `scale_${comp.actionTarget} = (float)(this.value * ${comp.maxVal});`;
+        } else if (comp.actionType === 'UPDATE_TARGET_ROTATION' && comp.actionTarget) {
+            sliderApplyValueCode = `rotY_${comp.actionTarget} = (float)(this.value * ${comp.maxVal});`;
+        } else if (comp.actionType === 'UPDATE_PROGRESS_BAR' && comp.actionTarget) {
+            sliderApplyValueCode = `val_${comp.actionTarget} = (float)(this.value * ${comp.maxVal});`;
+        }
+
         if (comp.useCustomTextures && comp.sliderTrackTex && comp.sliderThumbTex) {
             const trackRes = `net.minecraft.resources.ResourceLocation.parse("${comp.sliderTrackTex}")`;
             const thumbRes = `net.minecraft.resources.ResourceLocation.parse("${comp.sliderThumbTex}")`;
@@ -325,7 +346,7 @@ export const generateJavaCode = (guiConfig, components) => {
 
             componentInitString = `new net.minecraft.client.gui.components.AbstractSliderButton(${posX}, ${posY}, ${comp.width}, ${comp.height}, Component.empty(), ${comp.currentVal / comp.maxVal}) {\n` +
             `            @Override protected void updateMessage() { this.setMessage(${javaMessageExpression}); }\n` +
-            `            @Override protected void applyValue() { /* Tracking code */ }\n` +
+            `            @Override protected void applyValue() { ${sliderApplyValueCode} }\n` +
             `            @Override\n` +
             `            public void renderWidget(net.minecraft.client.gui.GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {\n` +
             `                guiGraphics.blit(${trackRes}, this.getX(), this.getY(), 0, 0, this.width, this.height, this.width, this.height);\n` +
@@ -336,7 +357,7 @@ export const generateJavaCode = (guiConfig, components) => {
             `            }\n` +
             `        }`;
         } else {
-            componentInitString = `new net.minecraft.client.gui.components.AbstractSliderButton(${posX}, ${posY}, ${comp.width}, ${comp.height}, Component.empty(), ${comp.currentVal / comp.maxVal}) {\n            @Override protected void updateMessage() { this.setMessage(${javaMessageExpression}); }\n            @Override protected void applyValue() { /* Tracking code */ }\n        }`;
+            componentInitString = `new net.minecraft.client.gui.components.AbstractSliderButton(${posX}, ${posY}, ${comp.width}, ${comp.height}, Component.empty(), ${comp.currentVal / comp.maxVal}) {\n            @Override protected void updateMessage() { this.setMessage(${javaMessageExpression}); }\n            @Override protected void applyValue() { ${sliderApplyValueCode} }\n        }`;
         }
         
         if (comp.parentId) {
@@ -365,31 +386,52 @@ export const generateJavaCode = (guiConfig, components) => {
         componentInitString = `new net.minecraft.client.gui.components.EditBox(this.font, ${posX}, ${posY}, ${comp.width}, ${comp.height}, ${hintComp})`;
         
         let responderCode = "";
+        let actionLogic = "";
         if (comp.actionType === 'UPDATE_LABEL' && comp.actionTarget) {
-            responderCode = `\n        this.${comp.id}.setResponder(text -> { if (this.${comp.actionTarget} != null) this.${comp.actionTarget}.setMessage(Component.literal(text)); });`;
+            actionLogic = `if (this.${comp.actionTarget} != null) this.${comp.actionTarget}.setMessage(Component.literal(text));`;
         } else if (comp.actionType === 'PRINT_CONSOLE') {
-            responderCode = `\n        this.${comp.id}.setResponder(text -> System.out.println("${comp.id} changed: " + text));`;
+            actionLogic = `System.out.println("${comp.id} changed: " + text);`;
+        }
+
+        if (comp.actionEvent !== 'ON_ENTER' && actionLogic !== "") {
+            responderCode = `\n        this.${comp.id}.setResponder(text -> { ${actionLogic} });`;
+        }
+
+        let filterCode = "";
+        if (comp.forceNumeric) {
+            filterCode = `\n        this.${comp.id}.setFilter(s -> s.isEmpty() || s.matches("-?\\\\d+"));`;
         }
 
         if (comp.parentId) {
             if (!scrollPanelChildrenMap[comp.parentId]) scrollPanelChildrenMap[comp.parentId] = [];
-            scrollPanelChildrenMap[comp.parentId].push(`        this.${comp.id} = ${componentInitString};\n        this.${comp.id}.setHint(${hintComp});${responderCode}\n        this.${comp.parentId}.addWidget(this.${comp.id});`);
+            scrollPanelChildrenMap[comp.parentId].push(`        this.${comp.id} = ${componentInitString};\n        this.${comp.id}.setHint(${hintComp});${filterCode}${responderCode}\n        this.${comp.parentId}.addWidget(this.${comp.id});`);
         } else {
-            initCode.push(`        // EditBox: ${comp.id}\n        this.${comp.id} = ${componentInitString};\n        this.${comp.id}.setHint(${hintComp});${responderCode}\n        this.addRenderableWidget(this.${comp.id});`);
+            initCode.push(`        // EditBox: ${comp.id}\n        this.${comp.id} = ${componentInitString};\n        this.${comp.id}.setHint(${hintComp});${filterCode}${responderCode}\n        this.addRenderableWidget(this.${comp.id});`);
         }
         break;
 
       case 'Image':
-        const imgLoc = `net.minecraft.resources.ResourceLocation.parse("${comp.texture || 'pondertestgui:textures/gui/custom_image.png'}")`;
-        
         let imgRenderCode = "";
+        let imgLocStr = "";
+        
+        if (comp.isUrl && comp.texture) {
+            const urlLoc = `net.minecraft.resources.ResourceLocation.parse("${guiConfig.modId}:url_image_${comp.id}")`;
+            imgLocStr = urlLoc;
+            
+            initCode.push(`        // URL Image Registration: ${comp.id}`);
+            initCode.push(`        net.minecraft.client.renderer.texture.HttpTexture httpTex_${comp.id} = new net.minecraft.client.renderer.texture.HttpTexture(null, "${comp.texture}", net.minecraft.resources.ResourceLocation.parse("minecraft:textures/gui/container/inventory.png"), false, null);`);
+            initCode.push(`        net.minecraft.client.Minecraft.getInstance().getTextureManager().register(${urlLoc}, httpTex_${comp.id});`);
+        } else {
+            imgLocStr = `net.minecraft.resources.ResourceLocation.parse("${comp.texture || 'pondertestgui:textures/gui/custom_image.png'}")`;
+        }
+        
         if (comp.color && comp.color !== '0xFFFFFFFF' && comp.color !== '0xFFFFFF') {
             imgRenderCode += `        int color_${comp.id} = (int) Long.parseLong("${comp.color}".replace("0x", ""), 16);\n`;
             imgRenderCode += `        guiGraphics.setColor(((color_${comp.id} >> 16) & 0xFF) / 255.0F, ((color_${comp.id} >> 8) & 0xFF) / 255.0F, (color_${comp.id} & 0xFF) / 255.0F, ((color_${comp.id} >> 24) & 0xFF) / 255.0F);\n`;
-            imgRenderCode += `        guiGraphics.blit(${imgLoc}, ${posX}, ${posY}, 0, 0, ${comp.width}, ${comp.height}, ${comp.width}, ${comp.height});\n`;
+            imgRenderCode += `        guiGraphics.blit(${imgLocStr}, ${posX}, ${posY}, 0, 0, ${comp.width}, ${comp.height}, ${comp.width}, ${comp.height});\n`;
             imgRenderCode += `        guiGraphics.setColor(1.0F, 1.0F, 1.0F, 1.0F);\n`;
         } else {
-            imgRenderCode = `        guiGraphics.blit(${imgLoc}, ${posX}, ${posY}, 0, 0, ${comp.width}, ${comp.height}, ${comp.width}, ${comp.height});`;
+            imgRenderCode = `        guiGraphics.blit(${imgLocStr}, ${posX}, ${posY}, 0, 0, ${comp.width}, ${comp.height}, ${comp.width}, ${comp.height});`;
         }
 
         if (comp.parentId) {
@@ -457,6 +499,19 @@ export const generateJavaCode = (guiConfig, components) => {
   let editBoxIds = components.filter(c => c.type === 'EditBox').map(c => c.id);
   let editBoxChecks = editBoxIds.length > 0 ? editBoxIds.map(id => `this.${id} != null && this.${id}.isFocused()`).join(' || ') : 'false';
 
+  let editBoxEnterChecks = components.filter(c => c.type === 'EditBox' && c.actionEvent === 'ON_ENTER').map(comp => {
+      let actionLogic = "";
+      if (comp.actionType === 'UPDATE_LABEL' && comp.actionTarget) {
+          actionLogic = `if (this.${comp.actionTarget} != null) this.${comp.actionTarget}.setMessage(Component.literal(this.${comp.id}.getValue()));`;
+      } else if (comp.actionType === 'PRINT_CONSOLE') {
+          actionLogic = `System.out.println("${comp.id} value: " + this.${comp.id}.getValue());`;
+      }
+      if (actionLogic !== "") {
+          return `            if (this.${comp.id} != null && this.${comp.id}.isFocused()) { ${actionLogic} return true; }`;
+      }
+      return "";
+  }).filter(s => s !== "").join('\n');
+
   let scrollCalls = scrollPanelIds.map(id => `        if (this.${id}.mouseScrolled(mouseX, mouseY, scrollX, scrollY)) return true;`).join('\n');
   let clickCalls = scrollPanelIds.map(id => `        if (this.${id}.mouseClicked(mouseX, mouseY, button)) { this.setFocused(this.${id}); return true; }`).join('\n');
   let releaseCalls = scrollPanelIds.map(id => `        if (this.${id}.mouseReleased(mouseX, mouseY, button)) return true;`).join('\n');
@@ -491,6 +546,9 @@ export const generateJavaCode = (guiConfig, components) => {
     public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
         boolean isEditBoxFocused = ${editBoxChecks};
         if (isEditBoxFocused) {
+            if (keyCode == 257 || keyCode == 335) { // Enter or Numpad Enter
+${editBoxEnterChecks}
+            }
             if (this.getFocused() != null && this.getFocused().keyPressed(keyCode, scanCode, modifiers)) {
                 return true;
             }
@@ -533,6 +591,7 @@ ${fields.join('\n')}
         this.leftPos = (this.width - this.imageWidth) / 2;
         this.topPos = (this.height - this.imageHeight) / 2;
 
+${guiConfig.onInitActionType === 'PLAY_SOUND' ? `        net.minecraft.client.Minecraft.getInstance().getSoundManager().play(net.minecraft.client.resources.sounds.SimpleSoundInstance.forUI(${guiConfig.onInitActionTarget ? `net.minecraft.sounds.SoundEvent.createVariableRangeEvent(net.minecraft.resources.ResourceLocation.parse("${guiConfig.onInitActionTarget}"))` : `net.minecraft.sounds.SoundEvents.UI_BUTTON_CLICK.value()`}, 1.0F));\n` : ''}${guiConfig.onInitActionType === 'SEND_PACKET' ? `        // TODO: Send init packet to server\n        // ModMessages.sendToServer(new ${guiConfig.onInitActionTarget || 'CustomInitPacket'}());\n` : ''}
         // --- GENERATED WIDGETS ---
 ${initCode.join('\n')}
         // -------------------------

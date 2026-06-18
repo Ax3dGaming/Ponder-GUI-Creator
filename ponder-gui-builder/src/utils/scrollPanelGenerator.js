@@ -1,5 +1,5 @@
 export const generateScrollPanelWidgetCode = (widgetPackage) => {
-  return `package ${widgetPackage};
+    return `package ${widgetPackage};
 
 import net.minecraft.client.Minecraft;
 import net.neoforged.api.distmarker.Dist;
@@ -35,8 +35,6 @@ public class ScrollPanelWidget extends AbstractWidget implements Renderable, Gui
     private ResourceLocation vThumbTex = null;
     private ResourceLocation hBarTex = null;
     private ResourceLocation hThumbTex = null;
-    
-    // Nouvelle variable pour l'image de fond fixe
     private ResourceLocation backgroundTexture = null;
 
     public ScrollPanelWidget(int x, int y, int width, int height, int maxContentWidth, int maxContentHeight, boolean allowXScroll, boolean allowYScroll, boolean showBorder, int borderColor) {
@@ -59,7 +57,6 @@ public class ScrollPanelWidget extends AbstractWidget implements Renderable, Gui
         if (!thumb.isEmpty()) this.hThumbTex = ResourceLocation.parse(thumb);
     }
 
-    // Méthode d'attribution de l'image de fond fixe
     public void setBackgroundTexture(String tex) {
         if (tex != null && !tex.isEmpty()) {
             this.backgroundTexture = ResourceLocation.parse(tex);
@@ -90,7 +87,6 @@ public class ScrollPanelWidget extends AbstractWidget implements Renderable, Gui
         if (this.width > 0 && this.height > 0) {
             guiGraphics.enableScissor(this.getX(), this.getY(), this.getX() + this.width, this.getY() + this.height);
             
-            // RENDU DE L'IMAGE DE FOND FIXE : Avant le pushPose de défilement pour qu'elle ne bouge pas !
             if (this.backgroundTexture != null) {
                 guiGraphics.blit(this.backgroundTexture, this.getX(), this.getY(), 0, 0, this.width, this.height, this.width, this.height);
             }
@@ -211,10 +207,28 @@ public class ScrollPanelWidget extends AbstractWidget implements Renderable, Gui
 
     @Override
     public boolean mouseReleased(double mouseX, double mouseY, int button) {
-        if (button == 0) { this.isDraggingY = false; this.isDraggingX = false;
+        if (button == 0) { 
+            this.isDraggingY = false; 
+            this.isDraggingX = false;
             if (this.focusedChild != null) { this.focusedChild.mouseReleased(mouseX, mouseY, button); this.focusedChild = null; }
         }
         return super.mouseReleased(mouseX, mouseY, button);
+    }
+
+    @Override
+    public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
+        if (this.focusedChild != null && this.focusedChild.keyPressed(keyCode, scanCode, modifiers)) {
+            return true;
+        }
+        return super.keyPressed(keyCode, scanCode, modifiers);
+    }
+
+    @Override
+    public boolean charTyped(char codePoint, int modifiers) {
+        if (this.focusedChild != null && this.focusedChild.charTyped(codePoint, modifiers)) {
+            return true;
+        }
+        return super.charTyped(codePoint, modifiers);
     }
 
     @Override protected void updateWidgetNarration(NarrationElementOutput output) {}

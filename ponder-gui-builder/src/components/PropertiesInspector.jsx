@@ -80,6 +80,31 @@ export default function PropertiesInspector({
         </div>
       </div>
 
+      <div className="flex flex-col gap-2 bg-zinc-900 p-3 rounded border border-zinc-700">
+        <span className="text-xs font-semibold text-zinc-400 uppercase">Screen On Init Action</span>
+        <select
+          value={guiConfig.onInitActionType || 'NONE'}
+          onChange={(e) => setGuiConfig({...guiConfig, onInitActionType: e.target.value})}
+          className="w-full bg-zinc-950 p-1.5 rounded border border-zinc-700 text-xs outline-none font-mono text-emerald-400 mt-1"
+        >
+          <option value="NONE">None</option>
+          <option value="PLAY_SOUND">Play Sound</option>
+          <option value="SEND_PACKET">Send Server Packet</option>
+        </select>
+        {guiConfig.onInitActionType === 'PLAY_SOUND' && (
+          <div>
+            <label className="text-[10px] text-zinc-400">Sound ID (Vanilla or Custom):</label>
+            <input type="text" value={guiConfig.onInitActionTarget || ''} onChange={(e) => setGuiConfig({...guiConfig, onInitActionTarget: e.target.value})} className="w-full bg-zinc-950 p-1.5 rounded border border-zinc-700 text-xs outline-none text-white font-mono mt-1" placeholder="minecraft:ui.button.click" />
+          </div>
+        )}
+        {guiConfig.onInitActionType === 'SEND_PACKET' && (
+          <div>
+            <label className="text-[10px] text-zinc-400">Packet/Channel ID:</label>
+            <input type="text" value={guiConfig.onInitActionTarget || ''} onChange={(e) => setGuiConfig({...guiConfig, onInitActionTarget: e.target.value})} className="w-full bg-zinc-950 p-1.5 rounded border border-zinc-700 text-xs outline-none text-white font-mono mt-1" placeholder="MyCustomPacket" />
+          </div>
+        )}
+      </div>
+
       {/* INSPECTION INDIVIDUELLE DES COMPOSANTS SÉLECTIONNÉS */}
       {!selectedComponent ? (
         <div className="text-xs text-zinc-500 italic mt-2">Right click on any component to edit its individual properties.</div>
@@ -106,6 +131,10 @@ export default function PropertiesInspector({
                 <option value="OPEN_SCREEN">Open Another Screen</option>
                 <option value="CLOSE_SCREEN">Close Current Screen</option>
                 <option value="PRINT_CONSOLE">Print to Console</option>
+                <option value="PLAY_SOUND">Play Sound</option>
+                <option value="OPEN_URL">Open Web URL</option>
+                <option value="TOGGLE_VISIBILITY">Toggle Component Visibility</option>
+                <option value="SEND_PACKET">Send Server Packet</option>
               </select>
 
               {selectedComponent.actionType === 'OPEN_SCREEN' && (
@@ -120,21 +149,66 @@ export default function PropertiesInspector({
                   <input type="text" value={selectedComponent.actionTarget || ''} onChange={(e) => updateSelectedComponent('actionTarget', e.target.value)} className="w-full bg-zinc-950 p-1.5 rounded border border-zinc-700 text-xs outline-none text-white font-sans mt-1" placeholder="Button clicked!" />
                 </div>
               )}
+              {selectedComponent.actionType === 'PLAY_SOUND' && (
+                <div>
+                  <label className="text-[10px] text-zinc-400">Sound ID:</label>
+                  <input type="text" value={selectedComponent.actionTarget || ''} onChange={(e) => updateSelectedComponent('actionTarget', e.target.value)} className="w-full bg-zinc-950 p-1.5 rounded border border-zinc-700 text-xs outline-none text-white font-mono mt-1" placeholder="minecraft:ui.button.click" />
+                </div>
+              )}
+              {selectedComponent.actionType === 'OPEN_URL' && (
+                <div>
+                  <label className="text-[10px] text-zinc-400">Web URL:</label>
+                  <input type="text" value={selectedComponent.actionTarget || ''} onChange={(e) => updateSelectedComponent('actionTarget', e.target.value)} className="w-full bg-zinc-950 p-1.5 rounded border border-zinc-700 text-xs outline-none text-white font-mono mt-1" placeholder="https://discord.gg/..." />
+                </div>
+              )}
+              {selectedComponent.actionType === 'TOGGLE_VISIBILITY' && (
+                <div>
+                  <label className="text-[10px] text-zinc-400">Target Component ID:</label>
+                  <input type="text" value={selectedComponent.actionTarget || ''} onChange={(e) => updateSelectedComponent('actionTarget', e.target.value)} className="w-full bg-zinc-950 p-1.5 rounded border border-zinc-700 text-xs outline-none text-white font-mono mt-1" placeholder="label_12345" />
+                </div>
+              )}
+              {selectedComponent.actionType === 'SEND_PACKET' && (
+                <div>
+                  <label className="text-[10px] text-zinc-400">Packet/Channel ID:</label>
+                  <input type="text" value={selectedComponent.actionTarget || ''} onChange={(e) => updateSelectedComponent('actionTarget', e.target.value)} className="w-full bg-zinc-950 p-1.5 rounded border border-zinc-700 text-xs outline-none text-white font-mono mt-1" placeholder="BuyItemPacket" />
+                </div>
+              )}
             </div>
           )}
 
           {selectedComponent.type === 'EditBox' && (
             <div className="flex flex-col gap-2 bg-zinc-900 p-2.5 rounded border border-zinc-700 mt-1">
-              <span className="text-xs font-semibold text-zinc-400 uppercase">On Text Change Action</span>
-              <select
-                value={selectedComponent.actionType || 'NONE'}
-                onChange={(e) => updateSelectedComponent('actionType', e.target.value)}
-                className="w-full bg-zinc-950 p-1.5 rounded border border-zinc-700 text-xs outline-none font-mono text-emerald-400"
-              >
-                <option value="NONE">None</option>
-                <option value="UPDATE_LABEL">Live Update Label</option>
-                <option value="PRINT_CONSOLE">Print to Console</option>
-              </select>
+              <span className="text-xs font-semibold text-zinc-400 uppercase">EditBox Actions & Filters</span>
+              
+              <label className="flex items-center gap-2 text-xs cursor-pointer select-none">
+                <input type="checkbox" checked={selectedComponent.forceNumeric === true} onChange={(e) => updateSelectedComponent('forceNumeric', e.target.checked)} className="rounded bg-zinc-950 border-zinc-700 accent-emerald-500" />
+                Force Numeric Input (Numbers only)
+              </label>
+
+              <div className="flex flex-col gap-1 mt-1">
+                <label className="text-[10px] text-zinc-400">Action Trigger:</label>
+                <select
+                  value={selectedComponent.actionEvent || 'ON_CHANGE'}
+                  onChange={(e) => updateSelectedComponent('actionEvent', e.target.value)}
+                  className="w-full bg-zinc-950 p-1.5 rounded border border-zinc-700 text-xs outline-none font-mono text-emerald-400"
+                >
+                  <option value="ON_CHANGE">On Text Change (Live)</option>
+                  <option value="ON_ENTER">On Enter Pressed</option>
+                </select>
+              </div>
+
+              <div className="flex flex-col gap-1 mt-1">
+                <label className="text-[10px] text-zinc-400">Action Type:</label>
+                <select
+                  value={selectedComponent.actionType || 'NONE'}
+                  onChange={(e) => updateSelectedComponent('actionType', e.target.value)}
+                  className="w-full bg-zinc-950 p-1.5 rounded border border-zinc-700 text-xs outline-none font-mono text-emerald-400"
+                >
+                  <option value="NONE">None</option>
+                  <option value="UPDATE_LABEL">Live Update Label</option>
+                  <option value="PRINT_CONSOLE">Print to Console</option>
+                </select>
+              </div>
 
               {selectedComponent.actionType === 'UPDATE_LABEL' && (
                 <div>
@@ -144,7 +218,30 @@ export default function PropertiesInspector({
               )}
               {selectedComponent.actionType === 'PRINT_CONSOLE' && (
                 <div className="text-[10px] text-zinc-500 italic mt-1">
-                  Will continuously print the EditBox string content to the console on every keystroke.
+                  Will print the EditBox string content to the console based on the trigger.
+                </div>
+              )}
+            </div>
+          )}
+
+          {selectedComponent.type === 'Slider' && (
+            <div className="flex flex-col gap-2 bg-zinc-900 p-2.5 rounded border border-zinc-700 mt-1">
+              <span className="text-xs font-semibold text-zinc-400 uppercase">Slider Action</span>
+              <select
+                value={selectedComponent.actionType || 'NONE'}
+                onChange={(e) => updateSelectedComponent('actionType', e.target.value)}
+                className="w-full bg-zinc-950 p-1.5 rounded border border-zinc-700 text-xs outline-none font-mono text-emerald-400"
+              >
+                <option value="NONE">None</option>
+                <option value="UPDATE_TARGET_SCALE">Live Target Scaling</option>
+                <option value="UPDATE_TARGET_ROTATION">Live Target Rotation (Y Axis)</option>
+                <option value="UPDATE_PROGRESS_BAR">Update Progress Bar</option>
+              </select>
+
+              {['UPDATE_TARGET_SCALE', 'UPDATE_TARGET_ROTATION', 'UPDATE_PROGRESS_BAR'].includes(selectedComponent.actionType) && (
+                <div>
+                  <label className="text-[10px] text-zinc-400">Target Component ID:</label>
+                  <input type="text" value={selectedComponent.actionTarget || ''} onChange={(e) => updateSelectedComponent('actionTarget', e.target.value)} className="w-full bg-zinc-950 p-1.5 rounded border border-zinc-700 text-xs outline-none text-white font-mono mt-1" placeholder="entity_123 or progressbar_456" />
                 </div>
               )}
             </div>
@@ -252,28 +349,53 @@ export default function PropertiesInspector({
             </div>
           )}
 
+          {selectedComponent.type === 'Image' && (
+            <div className="flex items-center gap-2 mt-1 mb-1">
+              <input 
+                type="checkbox" 
+                checked={selectedComponent.isUrl === true} 
+                onChange={(e) => updateSelectedComponent('isUrl', e.target.checked)} 
+                className="rounded bg-zinc-950 border-zinc-700 accent-emerald-500"
+              />
+              <label className="text-[11px] text-zinc-400">Load from Web URL</label>
+            </div>
+          )}
+
           {(selectedComponent.type === 'ImageButton' || selectedComponent.type === 'Image' || selectedComponent.type === 'PlayerInventory') && (
             <div>
-              <label className="text-xs text-zinc-400">Texture Asset Location</label>
-              {loadedAssets.length > 0 ? (
-                <select
-                  value={selectedComponent.texture || ''}
-                  onChange={(e) => updateSelectedComponent('texture', e.target.value)}
-                  className="w-full bg-zinc-950 p-1.5 rounded border border-zinc-700 text-xs outline-none font-mono text-emerald-300 mt-1"
-                >
-                  <option value="">-- Select a texture asset --</option>
-                  {loadedAssets.map(asset => (
-                    <option key={asset.minecraftPath} value={asset.minecraftPath}>{asset.minecraftPath}</option>
-                  ))}
-                </select>
-              ) : (
+              <label className="text-xs text-zinc-400">
+                {selectedComponent.isUrl ? 'Image Web URL' : 'Texture Asset Location'}
+              </label>
+              
+              {selectedComponent.isUrl ? (
                 <input 
                   type="text" 
                   value={selectedComponent.texture || ''} 
                   onChange={(e) => updateSelectedComponent('texture', e.target.value)} 
-                  className="w-full bg-zinc-900 p-1.5 rounded border border-zinc-700 text-xs mt-1 outline-none font-mono text-zinc-300" 
-                  placeholder="modid:textures/gui/widgets.png" 
+                  className="w-full bg-zinc-900 p-1.5 rounded border border-zinc-700 text-xs mt-1 outline-none font-mono text-sky-300" 
+                  placeholder="https://example.com/image.png" 
                 />
+              ) : (
+                loadedAssets.length > 0 ? (
+                  <select
+                    value={selectedComponent.texture || ''}
+                    onChange={(e) => updateSelectedComponent('texture', e.target.value)}
+                    className="w-full bg-zinc-950 p-1.5 rounded border border-zinc-700 text-xs outline-none font-mono text-emerald-300 mt-1"
+                  >
+                    <option value="">-- Select a texture asset --</option>
+                    {loadedAssets.map(asset => (
+                      <option key={asset.minecraftPath} value={asset.minecraftPath}>{asset.minecraftPath}</option>
+                    ))}
+                  </select>
+                ) : (
+                  <input 
+                    type="text" 
+                    value={selectedComponent.texture || ''} 
+                    onChange={(e) => updateSelectedComponent('texture', e.target.value)} 
+                    className="w-full bg-zinc-900 p-1.5 rounded border border-zinc-700 text-xs mt-1 outline-none font-mono text-zinc-300" 
+                    placeholder="modid:textures/gui/widgets.png" 
+                  />
+                )
               )}
             </div>
           )}

@@ -25,7 +25,9 @@ export default function App() {
     bgWidth: 176,
     bgHeight: 166,
     textureWidth: 256,
-    textureHeight: 256
+    textureHeight: 256,
+    onInitActionType: "NONE",
+    onInitActionTarget: ""
   });
 
   const fileInputRef = useRef(null);
@@ -257,8 +259,10 @@ export default function App() {
       entityFollowMouse: true,
       
       // === NOUVEAU : SYSTÈME D'ACTIONS ===
-      actionType: 'NONE', // NONE, OPEN_SCREEN, CLOSE_SCREEN, PRINT_CONSOLE, UPDATE_LABEL
-      actionTarget: ''
+      actionType: 'NONE', // NONE, OPEN_SCREEN, CLOSE_SCREEN, PRINT_CONSOLE, UPDATE_LABEL, PLAY_SOUND, SEND_PACKET, etc.
+      actionTarget: '',
+      actionEvent: type === 'EditBox' ? 'ON_CHANGE' : '',
+      forceNumeric: false
     };
     setComponents([...components, newComponent]);
   };
@@ -383,7 +387,8 @@ export default function App() {
         style={{ 
           position: 'absolute', left: `${comp.x}px`, top: `${comp.y}px`, width: `${comp.width}px`, height: `${comp.height}px`,
           cursor: draggingId === comp.id ? 'grabbing' : 'grab',
-          backgroundImage: associatedAsset && comp.type !== 'ProgressBar' ? `url(${associatedAsset.localUrl})` : 'none',
+          backgroundImage: associatedAsset && comp.type !== 'ProgressBar' ? `url(${associatedAsset.localUrl})` : 
+                           (comp.type === 'Image' && comp.isUrl && comp.texture ? `url(${comp.texture})` : 'none'),
           backgroundSize: '100% 100%', backgroundRepeat: 'no-repeat', imageRendering: 'pixelated'
         }}
         className={`flex items-center justify-center text-[10px] border rounded font-sans group relative overflow-hidden
