@@ -1,4 +1,5 @@
 import { WidgetRegistry } from '../widgets/WidgetRegistry';
+import { parsePlaceholdersJavaText, parsePlaceholdersJavaRaw } from '../placeholders/PlaceholderRegistry';
 
 const generateMenuCode = (guiConfig, slots, hasPlayerInv) => {
   let slotRegistrations = [];
@@ -105,7 +106,8 @@ export const generateJavaCode = (guiConfig, components) => {
   let scrollPanelIds = [];
 
   const getTextComponent = (comp) => {
-      return comp.isTranslatable ? `Component.translatable("${comp.text}")` : `Component.literal("${comp.text}")`;
+      if (comp.isTranslatable) return `Component.translatable("${comp.text}")`;
+      return parsePlaceholdersJavaText(comp.text);
   };
 
   const getButtonActionCode = (comp) => {
@@ -134,13 +136,40 @@ export const generateJavaCode = (guiConfig, components) => {
     const context = { guiConfig, getTextComponent, getButtonActionCode, slotIndexMap };
     const result = WidgetRegistry.generateJava(comp.type, comp, context);
     
+    let conditionWrapOpen = "";
+    let conditionWrapClose = "";
+
+    if (comp.conditionOp || comp.conditionCreative || comp.conditionItem) {
+        const checks = [];
+        if (comp.conditionOp) checks.push("this.minecraft.player.hasPermissions(2)");
+        if (comp.conditionCreative) checks.push("this.minecraft.player.getAbilities().instabuild");
+        if (comp.conditionItem) checks.push(`this.minecraft.player.getInventory().contains(new net.minecraft.world.item.ItemStack(net.minecraft.core.registries.BuiltInRegistries.ITEM.getValue(net.minecraft.resources.ResourceLocation.parse("${comp.conditionItem}"))))`);
+        
+        if (checks.length > 0) {
+            conditionWrapOpen = `if (${checks.join(" && ")}) {`;
+            conditionWrapClose = `}`;
+        }
+    }
+
     if (result.fields) fields.push(...result.fields);
-    if (result.initCode) initCode.push(...result.initCode);
-    if (result.renderBgCode) renderBgCode.push(...result.renderBgCode);
+    
+    if (result.initCode && result.initCode.length > 0) {
+        if (conditionWrapOpen) initCode.push(`        ${conditionWrapOpen}`);
+        initCode.push(...result.initCode.map(line => conditionWrapOpen ? `    ${line}` : line));
+        if (conditionWrapClose) initCode.push(`        ${conditionWrapClose}`);
+    }
+
+    if (result.renderBgCode && result.renderBgCode.length > 0) {
+        if (conditionWrapOpen) renderBgCode.push(`        ${conditionWrapOpen}`);
+        renderBgCode.push(...result.renderBgCode.map(line => conditionWrapOpen ? `    ${line}` : line));
+        if (conditionWrapClose) renderBgCode.push(`        ${conditionWrapClose}`);
+    }
     
     if (comp.parentId && result.scrollChildrenCode && result.scrollChildrenCode.length > 0) {
       if (!scrollPanelChildrenMap[comp.parentId]) scrollPanelChildrenMap[comp.parentId] = [];
-      scrollPanelChildrenMap[comp.parentId].push(...result.scrollChildrenCode);
+      if (conditionWrapOpen) scrollPanelChildrenMap[comp.parentId].push(`        ${conditionWrapOpen}`);
+      scrollPanelChildrenMap[comp.parentId].push(...result.scrollChildrenCode.map(line => conditionWrapOpen ? `    ${line}` : line));
+      if (conditionWrapClose) scrollPanelChildrenMap[comp.parentId].push(`        ${conditionWrapClose}`);
     }
 
     if (comp.hoverActionType && comp.hoverActionType !== 'NONE') {

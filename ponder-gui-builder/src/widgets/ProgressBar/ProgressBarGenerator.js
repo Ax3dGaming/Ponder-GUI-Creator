@@ -1,12 +1,18 @@
+import { parsePlaceholdersJavaRaw } from '../../placeholders/PlaceholderRegistry';
+
 export const ProgressBarGenerator = {
   generateJava: (comp) => {
-    const fields = [`    private net.minecraft.client.gui.components.AbstractWidget ${comp.id};`, `    private float val_${comp.id} = ${comp.currentVal}f;`];
+    const rawVal = parsePlaceholdersJavaRaw(comp.currentVal || '0');
+    const rawMin = parsePlaceholdersJavaRaw(comp.minVal || '0');
+    const rawMax = parsePlaceholdersJavaRaw(comp.maxVal || '100');
+
+    const fields = [`    private net.minecraft.client.gui.components.AbstractWidget ${comp.id};`, `    private float val_${comp.id} = (float)(${rawVal});`];
     const posX = comp.parentId ? `${comp.x}` : `this.leftPos + ${comp.x}`;
     const posY = comp.parentId ? `${comp.y}` : `this.topPos + ${comp.y}`;
     
     let componentInitString = `new net.minecraft.client.gui.components.AbstractWidget(${posX}, ${posY}, ${comp.width}, ${comp.height}, Component.empty()) {\n` +
-    `            private float min = ${comp.minVal}f;\n` +
-    `            private float max = ${comp.maxVal}f;\n`;
+    `            private float min = (float)(${rawMin});\n` +
+    `            private float max = (float)(${rawMax});\n`;
 
     let fillLogicTex = "";
     let fillLogicSolid = "";

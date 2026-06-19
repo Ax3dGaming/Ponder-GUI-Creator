@@ -1,5 +1,6 @@
 import React from 'react';
 import GlobalConfigPanel from './Inspector/panels/GlobalConfigPanel';
+import ConditionPanel from './Inspector/panels/ConditionPanel';
 import { WidgetRegistry } from '../widgets/WidgetRegistry';
 
 export default function PropertiesInspector({
@@ -8,7 +9,9 @@ export default function PropertiesInspector({
   onDelete,
   loadedAssets = [],
   guiConfig,
-  setGuiConfig
+  setGuiConfig,
+  moveComponentUp,
+  moveComponentDown
 }) {
 
   // --- HELPER LOGIC POUR LE COLOR PICKER ---
@@ -61,6 +64,22 @@ export default function PropertiesInspector({
             getHtmlColor,
             handleColorPick
           })}
+
+          {/* CONDITIONS */}
+          <ConditionPanel selectedComponent={selectedComponent} updateSelectedComponent={updateSelectedComponent} />
+
+          {/* LAYER ORDER (Z-INDEX) */}
+          <div className="flex flex-col gap-2 bg-zinc-900 p-2.5 rounded border border-zinc-700 mt-1">
+            <span className="text-xs font-semibold text-zinc-400 uppercase">Layer Order</span>
+            <div className="flex gap-2">
+              <button onClick={moveComponentUp} className="w-full bg-zinc-700 hover:bg-zinc-600 text-zinc-200 py-1.5 px-3 rounded text-xs transition shadow border border-zinc-600">
+                Move Forward
+              </button>
+              <button onClick={moveComponentDown} className="w-full bg-zinc-700 hover:bg-zinc-600 text-zinc-200 py-1.5 px-3 rounded text-xs transition shadow border border-zinc-600">
+                Move Backward
+              </button>
+            </div>
+          </div>
 
           <button
             onClick={onDelete}

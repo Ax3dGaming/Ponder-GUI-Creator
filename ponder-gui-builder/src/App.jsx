@@ -13,6 +13,9 @@ export default function App() {
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0, origX: 0, origY: 0 });
   const [initialSize, setInitialSize] = useState({ width: 0, height: 0 });
 
+  const [snapEnabled, setSnapEnabled] = useState(false);
+  const [snapSize, setSnapSize] = useState(2);
+
   const [loadedAssets, setLoadedAssets] = useState([]);
 
   const [guiConfig, setGuiConfig] = useState({
@@ -131,6 +134,11 @@ export default function App() {
         let newX = dragOffset.origX + deltaX;
         let newY = dragOffset.origY + deltaY;
 
+        if (snapEnabled) {
+          newX = Math.round(newX / snapSize) * snapSize;
+          newY = Math.round(newY / snapSize) * snapSize;
+        }
+
         if (comp.parentId) {
           const parent = components.find(p => p.id === comp.parentId);
           newX = Math.max(0, Math.min(newX, parent.width - comp.width));
@@ -202,6 +210,11 @@ export default function App() {
     dropX -= Math.round(compWidth / 2);
     dropY -= Math.round(compHeight / 2);
 
+    if (snapEnabled) {
+      dropX = Math.round(dropX / snapSize) * snapSize;
+      dropY = Math.round(dropY / snapSize) * snapSize;
+    }
+
     if (!targetPanelId) {
       dropX = Math.max(0, Math.min(dropX, guiConfig.bgWidth - compWidth));
       dropY = Math.max(0, Math.min(dropY, guiConfig.bgHeight - compHeight));
@@ -246,6 +259,24 @@ export default function App() {
   const handleDeleteComponent = () => {
     setComponents(components.filter(c => c.id !== selectedId && c.parentId !== selectedId));
     setSelectedId(null);
+  };
+
+  const moveComponentUp = () => {
+    if (!selectedId) return;
+    const idx = components.findIndex(c => c.id === selectedId);
+    if (idx >= components.length - 1) return;
+    const newComps = [...components];
+    [newComps[idx], newComps[idx + 1]] = [newComps[idx + 1], newComps[idx]];
+    setComponents(newComps);
+  };
+
+  const moveComponentDown = () => {
+    if (!selectedId) return;
+    const idx = components.findIndex(c => c.id === selectedId);
+    if (idx <= 0) return;
+    const newComps = [...components];
+    [newComps[idx], newComps[idx - 1]] = [newComps[idx - 1], newComps[idx]];
+    setComponents(newComps);
   };
 
   const selectedComponent = components.find(c => c.id === selectedId);
@@ -414,6 +445,20 @@ export default function App() {
             <button onClick={() => setScale(s => Math.min(5, s + 0.2))} className="w-6 h-6 flex items-center justify-center hover:bg-zinc-600 rounded text-zinc-300 font-bold">+</button>
             <button onClick={() => { setScale(1); setPan({ x: 0, y: 0 }); }} className="px-2 h-6 flex items-center justify-center hover:bg-zinc-600 rounded text-[10px] text-zinc-300 border-l border-zinc-700 ml-1">Reset</button>
           </div>
+          
+          <div className="flex items-center gap-2 bg-zinc-800/80 backdrop-blur border border-zinc-700 p-1.5 px-2 rounded shadow-lg mt-1">
+            <label className="flex items-center gap-2 text-[10px] text-zinc-300 cursor-pointer select-none">
+              <input type="checkbox" checked={snapEnabled} onChange={(e) => setSnapEnabled(e.target.checked)} className="rounded bg-zinc-950 border-zinc-700 accent-emerald-500" />
+              Snap to Grid
+            </label>
+            {snapEnabled && (
+              <select value={snapSize} onChange={(e) => setSnapSize(parseInt(e.target.value, 10))} className="bg-zinc-950 border border-zinc-700 text-[10px] rounded text-emerald-300 outline-none font-mono py-0.5">
+                <option value="2">2px</option>
+                <option value="4">4px</option>
+                <option value="8">8px</option>
+              </select>
+            )}
+          </div>
         </div>
 
         <div className="absolute bottom-4 left-4 text-xs text-zinc-400 bg-zinc-900/80 px-3 py-1.5 rounded-md border border-zinc-800 backdrop-blur-sm pointer-events-none z-50 shadow-lg leading-tight">
@@ -478,6 +523,7 @@ export default function App() {
         <PropertiesInspector
           selectedComponent={selectedComponent} updateSelectedComponent={updateSelectedComponent} onDelete={handleDeleteComponent}
           loadedAssets={loadedAssets} guiConfig={guiConfig} setGuiConfig={setGuiConfig}
+          moveComponentUp={moveComponentUp} moveComponentDown={moveComponentDown}
         />
       </div>
 
