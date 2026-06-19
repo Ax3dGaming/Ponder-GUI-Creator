@@ -76,6 +76,11 @@ export const generateJavaCode = (guiConfig, components) => {
   const slots = components.filter(c => c.type.includes('Slot'));
   const hasPlayerInv = components.some(c => c.type === 'PlayerInventory');
   
+  const slotIndexMap = {};
+  slots.forEach((slot, index) => {
+      slotIndexMap[slot.id] = index;
+  });
+  
   const menuClassName = `${guiConfig.className}Menu`;
   const baseClass = `AbstractContainerScreen<${menuClassName}>`;
 
@@ -126,7 +131,7 @@ export const generateJavaCode = (guiConfig, components) => {
   components.forEach(comp => {
     if (comp.type === 'ScrollPanel') return;
 
-    const context = { guiConfig, getTextComponent, getButtonActionCode };
+    const context = { guiConfig, getTextComponent, getButtonActionCode, slotIndexMap };
     const result = WidgetRegistry.generateJava(comp.type, comp, context);
     
     if (result.fields) fields.push(...result.fields);
@@ -136,6 +141,39 @@ export const generateJavaCode = (guiConfig, components) => {
     if (comp.parentId && result.scrollChildrenCode && result.scrollChildrenCode.length > 0) {
       if (!scrollPanelChildrenMap[comp.parentId]) scrollPanelChildrenMap[comp.parentId] = [];
       scrollPanelChildrenMap[comp.parentId].push(...result.scrollChildrenCode);
+    }
+
+    if (comp.hoverActionType && comp.hoverActionType !== 'NONE') {
+        fields.push(`    private boolean wasHovered_${comp.id} = false;`);
+        
+        let hoverLogic = "";
+        if (comp.hoverActionType === 'PLAY_SOUND') {
+            const soundTarget = comp.hoverActionTarget ? `net.minecraft.sounds.SoundEvent.createVariableRangeEvent(net.minecraft.resources.ResourceLocation.parse("${comp.hoverActionTarget}"))` : `net.minecraft.sounds.SoundEvents.UI_BUTTON_CLICK.value()`;
+            hoverLogic = `net.minecraft.client.Minecraft.getInstance().getSoundManager().play(net.minecraft.client.resources.sounds.SimpleSoundInstance.forUI(${soundTarget}, 1.0F));`;
+        } else if (comp.hoverActionType === 'PRINT_CONSOLE') {
+            hoverLogic = `System.out.println("${comp.hoverActionTarget || 'Hovered!'}");`;
+        }
+
+        const posX = comp.parentId ? `this.${comp.parentId}.getX() + ${comp.x}` : `this.leftPos + ${comp.x}`;
+        const posY = comp.parentId ? `this.${comp.parentId}.getY() + ${comp.y} - (int)this.${comp.parentId}.getScrollAmount()` : `this.topPos + ${comp.y}`;
+        
+        const hCode = [
+            `        if (mouseX >= ${posX} && mouseX <= ${posX} + ${comp.width} && mouseY >= ${posY} && mouseY <= ${posY} + ${comp.height}) {`,
+            `            if (!this.wasHovered_${comp.id}) {`,
+            `                ${hoverLogic}`,
+            `            }`,
+            `            this.wasHovered_${comp.id} = true;`,
+            `        } else {`,
+            `            this.wasHovered_${comp.id} = false;`,
+            `        }`
+        ];
+        
+        if (comp.parentId) {
+            if (!scrollPanelChildrenMap[comp.parentId]) scrollPanelChildrenMap[comp.parentId] = [];
+            scrollPanelChildrenMap[comp.parentId].push(...hCode);
+        } else {
+            renderBgCode.push(...hCode);
+        }
     }
   });
 
@@ -194,6 +232,9 @@ export const generateJavaCode = (guiConfig, components) => {
     @Override
     public boolean mouseDragged(double mouseX, double mouseY, int button, double dragX, double dragY) {
         ${dragCalls.length > 0 ? dragCalls : ''}
+        if (this.getFocused() != null && this.isDragging() && button == 0) {
+            return this.getFocused().mouseDragged(mouseX, mouseY, button, dragX, dragY);
+        }
         return super.mouseDragged(mouseX, mouseY, button, dragX, dragY);
     }
 
@@ -263,7 +304,7 @@ ${initCode.join('\n')}
 ${renderBgCode.join('\n')}
     }
 ${mouseListenersCode}
-
+${guiConfig.onTickCode ? `\n    @Override\n    public void containerTick() {\n        super.containerTick();\n${guiConfig.onTickCode.split('\\n').map(l => `        ${l}`).join('\\n')}\n    }\n` : ''}${guiConfig.onCloseCode ? `\n    @Override\n    public void onClose() {\n${guiConfig.onCloseCode.split('\\n').map(l => `        ${l}`).join('\\n')}\n        super.onClose();\n    }\n` : ''}
     @Override
     public boolean isPauseScreen() {
         return false;

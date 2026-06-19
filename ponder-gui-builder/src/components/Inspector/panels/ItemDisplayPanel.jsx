@@ -22,9 +22,31 @@ export default function ItemDisplayPanel({ selectedComponent, updateSelectedComp
           <input type="number" value={selectedComponent.itemRotationY || 0} onChange={(e) => updateSelectedComponent('itemRotationY', parseInt(e.target.value, 10) || 0)} className="w-full bg-zinc-950 p-1 rounded border border-zinc-700 text-xs text-center font-mono outline-none text-white" />
         </div>
         <div>
-          <label className="text-[10px] text-zinc-500 block text-center">Axis Z</label>
-          <input type="number" value={selectedComponent.itemRotationZ || 0} onChange={(e) => updateSelectedComponent('itemRotationZ', parseInt(e.target.value, 10) || 0)} className="w-full bg-zinc-950 p-1 rounded border border-zinc-700 text-xs text-center font-mono outline-none text-white" />
+          <label className="text-[10px] text-zinc-400">Rotation Z (°):</label>
+          <input type="number" value={selectedComponent.itemRotationZ} onChange={e => updateSelectedComponent('itemRotationZ', parseFloat(e.target.value) || 0)} className="w-full bg-zinc-950 p-1 rounded border border-zinc-700 text-xs text-center font-mono outline-none text-emerald-300" />
         </div>
+      </div>
+      
+      <div className="flex items-center gap-2 mt-2">
+        <input 
+          type="checkbox" 
+          id="item_tooltip"
+          checked={selectedComponent.showTooltip || false}
+          onChange={(e) => updateSelectedComponent('showTooltip', e.target.checked)}
+          className="accent-emerald-500"
+        />
+        <label htmlFor="item_tooltip" className="text-xs text-zinc-300 cursor-pointer">Show Item Tooltip</label>
+      </div>
+
+      <div className="flex items-center gap-2 mt-1">
+        <input 
+          type="checkbox" 
+          id="item_animate"
+          checked={selectedComponent.animateRotation || false}
+          onChange={(e) => updateSelectedComponent('animateRotation', e.target.checked)}
+          className="accent-emerald-500"
+        />
+        <label htmlFor="item_animate" className="text-xs text-zinc-300 cursor-pointer">Animate Rotation</label>
       </div>
     </div>
   );

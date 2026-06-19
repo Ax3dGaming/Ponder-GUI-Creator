@@ -17,10 +17,25 @@ export default function EntityPanel({ selectedComponent, updateSelectedComponent
           <input type="number" value={selectedComponent.entityRotationY || 0} onChange={(e) => updateSelectedComponent('entityRotationY', parseInt(e.target.value, 10) || 0)} disabled={selectedComponent.entityFollowMouse !== false} className="w-full bg-zinc-950 p-1 rounded border border-zinc-700 text-xs text-center font-mono outline-none text-white disabled:opacity-40" />
         </div>
       </div>
-      <div>
-        <label className="flex items-center gap-2 text-xs cursor-pointer select-none">
-          <input type="checkbox" checked={selectedComponent.entityFollowMouse !== false} onChange={(e) => updateSelectedComponent('entityFollowMouse', e.target.checked)} className="rounded bg-zinc-950 border-zinc-700 accent-emerald-500" />
-          Entity Follows Mouse
+      <div className="flex flex-col gap-1.5 mt-2">
+        <label className="flex items-center gap-2 cursor-pointer group">
+          <input 
+            type="checkbox" 
+            checked={selectedComponent.entityFollowMouse !== false}
+            onChange={(e) => updateSelectedComponent('entityFollowMouse', e.target.checked)}
+            className="accent-emerald-500 w-3.5 h-3.5 cursor-pointer"
+          />
+          <span className="text-xs text-zinc-300 group-hover:text-white transition">Follow Mouse Position</span>
+        </label>
+        
+        <label className="flex items-center gap-2 cursor-pointer group">
+          <input 
+            type="checkbox" 
+            checked={selectedComponent.animateRotation || false}
+            onChange={(e) => updateSelectedComponent('animateRotation', e.target.checked)}
+            className="accent-emerald-500 w-3.5 h-3.5 cursor-pointer"
+          />
+          <span className="text-xs text-zinc-300 group-hover:text-white transition">Animate Rotation</span>
         </label>
       </div>
       

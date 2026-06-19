@@ -53,7 +53,7 @@ export default function ProgressBarPanel({ selectedComponent, updateSelectedComp
         )}
       </div>
 
-      <div className="grid grid-cols-3 gap-1 mt-2 border-t border-zinc-800 pt-2">
+      <div className="grid grid-cols-2 gap-1 mt-2 border-t border-zinc-800 pt-2">
         <div>
           <label className="text-[10px] text-zinc-400">Min</label>
           <input type="number" step="0.1" value={selectedComponent.minVal} onChange={(e) => updateSelectedComponent('minVal', parseFloat(e.target.value) || 0)} className="w-full bg-zinc-950 p-1 rounded border border-zinc-700 text-xs outline-none font-mono text-white" />
@@ -62,10 +62,25 @@ export default function ProgressBarPanel({ selectedComponent, updateSelectedComp
           <label className="text-[10px] text-zinc-400">Max</label>
           <input type="number" step="0.1" value={selectedComponent.maxVal} onChange={(e) => updateSelectedComponent('maxVal', parseFloat(e.target.value) || 0)} className="w-full bg-zinc-950 p-1 rounded border border-zinc-700 text-xs outline-none font-mono text-white" />
         </div>
-        <div>
-          <label className="text-[10px] text-zinc-400">Value</label>
-          <input type="number" step="0.1" value={selectedComponent.currentVal} onChange={(e) => updateSelectedComponent('currentVal', parseFloat(e.target.value) || 0)} className="w-full bg-zinc-950 p-1 rounded border border-zinc-700 text-xs outline-none font-mono text-emerald-300" />
-        </div>
+      </div>
+
+      <div className="mt-1">
+        <label className="text-[10px] text-zinc-400">Fill Direction</label>
+        <select 
+          value={selectedComponent.fillDirection || 'LTR'} 
+          onChange={(e) => updateSelectedComponent('fillDirection', e.target.value)}
+          className="w-full bg-zinc-950 p-1.5 rounded border border-zinc-700 text-xs outline-none text-white mt-1"
+        >
+          <option value="LTR">Left to Right</option>
+          <option value="RTL">Right to Left</option>
+          <option value="TTB">Top to Bottom</option>
+          <option value="BTT">Bottom to Top</option>
+        </select>
+      </div>
+
+      <div className="mt-1">
+        <label className="text-[10px] text-zinc-400">Value</label>
+        <input type="number" step="0.1" value={selectedComponent.currentVal} onChange={(e) => updateSelectedComponent('currentVal', parseFloat(e.target.value) || 0)} className="w-full bg-zinc-950 p-1 rounded border border-zinc-700 text-xs outline-none font-mono text-emerald-300" />
       </div>
     </div>
   );

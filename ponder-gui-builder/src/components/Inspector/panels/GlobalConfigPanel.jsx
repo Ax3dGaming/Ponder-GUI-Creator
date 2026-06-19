@@ -76,6 +76,30 @@ export default function GlobalConfigPanel({ guiConfig, setGuiConfig, loadedAsset
           </div>
         )}
       </div>
+
+      <div className="flex flex-col gap-2 bg-zinc-900 p-3 rounded border border-zinc-700">
+        <span className="text-xs font-semibold text-zinc-400 uppercase">Global Events (Raw Java)</span>
+        
+        <div>
+          <label className="text-[10px] text-zinc-400">containerTick() Content:</label>
+          <textarea
+            value={guiConfig.onTickCode || ''}
+            onChange={(e) => setGuiConfig({...guiConfig, onTickCode: e.target.value})}
+            className="w-full h-20 bg-zinc-950 p-1.5 rounded border border-zinc-700 text-[10px] outline-none text-sky-300 font-mono mt-1 resize-none whitespace-pre"
+            placeholder="// Called every tick&#10;System.out.println(&quot;Tick!&quot;);"
+          />
+        </div>
+
+        <div>
+          <label className="text-[10px] text-zinc-400">onClose() Content:</label>
+          <textarea
+            value={guiConfig.onCloseCode || ''}
+            onChange={(e) => setGuiConfig({...guiConfig, onCloseCode: e.target.value})}
+            className="w-full h-20 bg-zinc-950 p-1.5 rounded border border-zinc-700 text-[10px] outline-none text-sky-300 font-mono mt-1 resize-none whitespace-pre"
+            placeholder="// Called when GUI is closed&#10;System.out.println(&quot;Closed!&quot;);"
+          />
+        </div>
+      </div>
     </div>
   );
 }

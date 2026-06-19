@@ -15,7 +15,8 @@ export const EntityDisplayWidget = {
     entityRotationX: 0,
     entityRotationY: 0,
     entityRotationZ: 0,
-    entityFollowMouse: true
+    entityFollowMouse: true,
+    animateRotation: false
   }),
 
   renderCanvas: ({ comp, isSelected }) => {

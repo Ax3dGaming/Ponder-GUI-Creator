@@ -18,13 +18,16 @@ export const ImageGenerator = {
         imgLocStr = `net.minecraft.resources.ResourceLocation.parse("${comp.texture || 'pondertestgui:textures/gui/custom_image.png'}")`;
     }
     
+    const u = comp.u || 0;
+    const v = comp.v || 0;
+
     if (comp.color && comp.color !== '0xFFFFFFFF' && comp.color !== '0xFFFFFF') {
         imgRenderCode += `        int color_${comp.id} = (int) Long.parseLong("${comp.color}".replace("0x", ""), 16);\n`;
         imgRenderCode += `        guiGraphics.setColor(((color_${comp.id} >> 16) & 0xFF) / 255.0F, ((color_${comp.id} >> 8) & 0xFF) / 255.0F, (color_${comp.id} & 0xFF) / 255.0F, ((color_${comp.id} >> 24) & 0xFF) / 255.0F);\n`;
-        imgRenderCode += `        guiGraphics.blit(${imgLocStr}, ${posX}, ${posY}, 0, 0, ${comp.width}, ${comp.height}, ${comp.width}, ${comp.height});\n`;
+        imgRenderCode += `        guiGraphics.blit(${imgLocStr}, ${posX}, ${posY}, ${u}, ${v}, ${comp.width}, ${comp.height});\n`;
         imgRenderCode += `        guiGraphics.setColor(1.0F, 1.0F, 1.0F, 1.0F);`;
     } else {
-        imgRenderCode = `        guiGraphics.blit(${imgLocStr}, ${posX}, ${posY}, 0, 0, ${comp.width}, ${comp.height}, ${comp.width}, ${comp.height});`;
+        imgRenderCode = `        guiGraphics.blit(${imgLocStr}, ${posX}, ${posY}, ${u}, ${v}, ${comp.width}, ${comp.height});`;
     }
 
     const renderBgCode = [];

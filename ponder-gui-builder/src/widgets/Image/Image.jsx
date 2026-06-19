@@ -10,9 +10,11 @@ export const ImageWidget = {
   isResizable: true,
 
   createInitialProps: () => ({
-    texture: '',
+    texture: 'minecraft:textures/gui/container/inventory.png',
     isUrl: false,
-    color: '0xFFFFFFFF'
+    color: '0xFFFFFFFF',
+    u: 0,
+    v: 0
   }),
 
   renderCanvas: ({ comp, isSelected, loadedAssets }) => {

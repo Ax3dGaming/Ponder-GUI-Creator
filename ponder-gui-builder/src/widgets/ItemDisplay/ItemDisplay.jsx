@@ -14,7 +14,9 @@ export const ItemDisplayWidget = {
     itemScale: 1.0,
     itemRotationX: 0,
     itemRotationY: 0,
-    itemRotationZ: 0
+    itemRotationZ: 0,
+    showTooltip: false,
+    animateRotation: false
   }),
 
   renderCanvas: ({ comp, isSelected }) => {

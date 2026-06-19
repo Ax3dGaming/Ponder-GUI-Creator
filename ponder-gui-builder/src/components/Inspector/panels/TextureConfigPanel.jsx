@@ -52,6 +52,19 @@ export default function TextureConfigPanel({ selectedComponent, updateSelectedCo
         )}
       </div>
 
+      {selectedComponent.type === 'Image' && !selectedComponent.isUrl && (
+        <div className="grid grid-cols-2 gap-2 mt-2">
+          <div>
+            <label className="text-[10px] text-zinc-400 block text-center">Texture U (X)</label>
+            <input type="number" value={selectedComponent.u || 0} onChange={(e) => updateSelectedComponent('u', parseInt(e.target.value, 10) || 0)} className="w-full bg-zinc-950 p-1 rounded border border-zinc-700 text-xs text-center font-mono outline-none text-sky-300" />
+          </div>
+          <div>
+            <label className="text-[10px] text-zinc-400 block text-center">Texture V (Y)</label>
+            <input type="number" value={selectedComponent.v || 0} onChange={(e) => updateSelectedComponent('v', parseInt(e.target.value, 10) || 0)} className="w-full bg-zinc-950 p-1 rounded border border-zinc-700 text-xs text-center font-mono outline-none text-sky-300" />
+          </div>
+        </div>
+      )}
+
       {selectedComponent.type === 'Image' && (
         <div className="mt-1">
           <label className="text-xs text-zinc-400">Tint Color (Java Hex)</label>

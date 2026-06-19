@@ -8,6 +8,31 @@ export const ProgressBarGenerator = {
     `            private float min = ${comp.minVal}f;\n` +
     `            private float max = ${comp.maxVal}f;\n`;
 
+    let fillLogicTex = "";
+    let fillLogicSolid = "";
+    
+    if (comp.fillDirection === 'RTL') {
+        fillLogicTex = `                int fgWidth = (int)(this.width * progress);\n` +
+                       `                if (fgWidth > 0) guiGraphics.blit(fillTex, this.getX() + this.width - fgWidth, this.getY(), this.width - fgWidth, 0, fgWidth, this.height, this.width, this.height);\n`;
+        fillLogicSolid = `                int fgWidth = (int)(this.width * progress);\n` +
+                         `                if (fgWidth > 0) guiGraphics.fill(this.getX() + this.width - fgWidth, this.getY(), this.getX() + this.width, this.getY() + this.height, color);\n`;
+    } else if (comp.fillDirection === 'TTB') {
+        fillLogicTex = `                int fgHeight = (int)(this.height * progress);\n` +
+                       `                if (fgHeight > 0) guiGraphics.blit(fillTex, this.getX(), this.getY(), 0, 0, this.width, fgHeight, this.width, this.height);\n`;
+        fillLogicSolid = `                int fgHeight = (int)(this.height * progress);\n` +
+                         `                if (fgHeight > 0) guiGraphics.fill(this.getX(), this.getY(), this.getX() + this.width, this.getY() + fgHeight, color);\n`;
+    } else if (comp.fillDirection === 'BTT') {
+        fillLogicTex = `                int fgHeight = (int)(this.height * progress);\n` +
+                       `                if (fgHeight > 0) guiGraphics.blit(fillTex, this.getX(), this.getY() + this.height - fgHeight, 0, this.height - fgHeight, this.width, fgHeight, this.width, this.height);\n`;
+        fillLogicSolid = `                int fgHeight = (int)(this.height * progress);\n` +
+                         `                if (fgHeight > 0) guiGraphics.fill(this.getX(), this.getY() + this.height - fgHeight, this.getX() + this.width, this.getY() + this.height, color);\n`;
+    } else { // LTR
+        fillLogicTex = `                int fgWidth = (int)(this.width * progress);\n` +
+                       `                if (fgWidth > 0) guiGraphics.blit(fillTex, this.getX(), this.getY(), 0, 0, fgWidth, this.height, this.width, this.height);\n`;
+        fillLogicSolid = `                int fgWidth = (int)(this.width * progress);\n` +
+                         `                if (fgWidth > 0) guiGraphics.fill(this.getX(), this.getY(), this.getX() + fgWidth, this.getY() + this.height, color);\n`;
+    }
+
     if (comp.useCustomTextures && comp.bgTexture && comp.fillTexture) {
         componentInitString +=
         `            private final net.minecraft.resources.ResourceLocation bgTex = net.minecraft.resources.ResourceLocation.parse("${comp.bgTexture}");\n` +
@@ -15,11 +40,8 @@ export const ProgressBarGenerator = {
         `            @Override\n` +
         `            public void renderWidget(net.minecraft.client.gui.GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {\n` +
         `                float progress = Math.max(0.0f, Math.min(1.0f, (val_${comp.id} - min) / (max - min)));\n` +
-        `                int fgWidth = (int)(this.width * progress);\n` +
         `                guiGraphics.blit(bgTex, this.getX(), this.getY(), 0, 0, this.width, this.height, this.width, this.height);\n` +
-        `                if (fgWidth > 0) {\n` +
-        `                    guiGraphics.blit(fillTex, this.getX(), this.getY(), 0, 0, fgWidth, this.height, this.width, this.height);\n` +
-        `                }\n` +
+        fillLogicTex +
         `            }\n`;
     } else {
         const barColor = comp.color || "0xFF10B981";
@@ -28,11 +50,9 @@ export const ProgressBarGenerator = {
         `\n            @Override\n` +
         `            public void renderWidget(net.minecraft.client.gui.GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {\n` +
         `                float progress = Math.max(0.0f, Math.min(1.0f, (val_${comp.id} - min) / (max - min)));\n` +
-        `                int fgWidth = (int)(this.width * progress);\n` +
+        `                int color = (int) Long.parseLong("${barColor}".replace("0x", ""), 16);\n` +
         `                guiGraphics.fill(this.getX(), this.getY(), this.getX() + this.width, this.getY() + this.height, (int) Long.parseLong("${bgBarColor}".replace("0x", ""), 16));\n` +
-        `                if (fgWidth > 0) {\n` +
-        `                    guiGraphics.fill(this.getX(), this.getY(), this.getX() + fgWidth, this.getY() + this.height, (int) Long.parseLong("${barColor}".replace("0x", ""), 16));\n` +
-        `                }\n` +
+        fillLogicSolid +
         `            }\n`;
     }
 

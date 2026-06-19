@@ -16,14 +16,19 @@ export const EntityDisplayGenerator = {
                        `            this.entity_${comp.id} = (net.minecraft.world.entity.LivingEntity) type_${comp.id}.create(this.minecraft.level);\n` +
                        `        }`;
 
-    const follow = comp.entityFollowMouse !== false;
+    const follow = comp.entityFollowMouse !== false && !comp.animateRotation;
 
     let entityRender = `        if (this.entity_${comp.id} != null) {\n`;
     entityRender += `            int posX = ${posX} + ${Math.round(comp.width / 2)};\n`;
     entityRender += `            int posY = ${posY} + ${comp.height};\n`;
     entityRender += `            int scale = (int) this.scale_${comp.id};\n\n`;
 
-    if (follow) {
+    if (comp.animateRotation) {
+        entityRender += `            float actRotY = this.rotY_${comp.id} + (float)((net.minecraft.Util.getMillis() % 3600L) / 10.0f);\n`;
+        entityRender += `            this.entity_${comp.id}.setYRot(180.0F + actRotY);\n`;
+        entityRender += `            this.entity_${comp.id}.setXRot(this.rotX_${comp.id});\n`;
+        entityRender += `            this.entity_${comp.id}.yBodyRot = 180.0F + actRotY;\n`;
+    } else if (follow) {
         entityRender += `            float mouseDeltaX = (float) (posX - mouseX);\n`;
         entityRender += `            float mouseDeltaY = (float) (posY - scale - mouseY);\n\n`;
         entityRender += `            this.entity_${comp.id}.setYRot(180.0F + mouseDeltaX * 0.04F);\n`;

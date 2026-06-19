@@ -1,5 +1,6 @@
 import React from 'react';
 import LayoutPanel from '../../components/Inspector/panels/LayoutPanel';
+import SlotPanel from '../../components/Inspector/panels/SlotPanel';
 
 export const InputSlotWidget = {
   type: 'InputSlot',
@@ -8,7 +9,9 @@ export const InputSlotWidget = {
   defaultHeight: 18,
   isResizable: false,
 
-  createInitialProps: () => ({}),
+  createInitialProps: () => ({
+    ghostIcon: ''
+  }),
 
   renderCanvas: ({ comp, isSelected }) => {
     return (
@@ -22,8 +25,9 @@ export const InputSlotWidget = {
     );
   },
 
-  renderInspector: ({ selectedComponent, updateSelectedComponent }) => (
+  renderInspector: ({ selectedComponent, updateSelectedComponent, loadedAssets }) => (
     <>
+      <SlotPanel selectedComponent={selectedComponent} updateSelectedComponent={updateSelectedComponent} loadedAssets={loadedAssets} />
       <LayoutPanel selectedComponent={selectedComponent} updateSelectedComponent={updateSelectedComponent} />
     </>
   )
