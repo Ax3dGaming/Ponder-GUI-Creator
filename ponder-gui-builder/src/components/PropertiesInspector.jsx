@@ -1,16 +1,6 @@
 import React from 'react';
 import GlobalConfigPanel from './Inspector/panels/GlobalConfigPanel';
-import ButtonPanel from './Inspector/panels/ButtonPanel';
-import SliderPanel from './Inspector/panels/SliderPanel';
-import EntityPanel from './Inspector/panels/EntityPanel';
-import EditBoxPanel from './Inspector/panels/EditBoxPanel';
-import ItemDisplayPanel from './Inspector/panels/ItemDisplayPanel';
-import TranslatableTextPanel from './Inspector/panels/TranslatableTextPanel';
-import TextureConfigPanel from './Inspector/panels/TextureConfigPanel';
-import LayoutPanel from './Inspector/panels/LayoutPanel';
-import LabelPanel from './Inspector/panels/LabelPanel';
-import ScrollPanelConfig from './Inspector/panels/ScrollPanelConfig';
-import ProgressBarPanel from './Inspector/panels/ProgressBarPanel';
+import { WidgetRegistry } from '../widgets/WidgetRegistry';
 
 export default function PropertiesInspector({
   selectedComponent,
@@ -62,42 +52,15 @@ export default function PropertiesInspector({
             <div className="text-xs text-emerald-400 bg-zinc-900 p-2 rounded mt-1 select-all font-mono break-all">{selectedComponent.id}</div>
           </div>
 
-          {/* === PANNEAUX SPÉCIFIQUES === */}
-          {['Button', 'ImageButton'].includes(selectedComponent.type) && (
-            <ButtonPanel selectedComponent={selectedComponent} updateSelectedComponent={updateSelectedComponent} />
-          )}
-          {selectedComponent.type === 'Slider' && (
-            <SliderPanel selectedComponent={selectedComponent} updateSelectedComponent={updateSelectedComponent} loadedAssets={loadedAssets} />
-          )}
-          {selectedComponent.type === 'EntityDisplay' && (
-            <EntityPanel selectedComponent={selectedComponent} updateSelectedComponent={updateSelectedComponent} />
-          )}
-          {selectedComponent.type === 'EditBox' && (
-            <EditBoxPanel selectedComponent={selectedComponent} updateSelectedComponent={updateSelectedComponent} />
-          )}
-          {selectedComponent.type === 'ItemDisplay' && (
-            <ItemDisplayPanel selectedComponent={selectedComponent} updateSelectedComponent={updateSelectedComponent} />
-          )}
-          {selectedComponent.type === 'ScrollPanel' && (
-            <ScrollPanelConfig selectedComponent={selectedComponent} updateSelectedComponent={updateSelectedComponent} loadedAssets={loadedAssets} guiConfig={guiConfig} getHtmlColor={getHtmlColor} handleColorPick={handleColorPick} />
-          )}
-          {selectedComponent.type === 'ProgressBar' && (
-            <ProgressBarPanel selectedComponent={selectedComponent} updateSelectedComponent={updateSelectedComponent} loadedAssets={loadedAssets} getHtmlColor={getHtmlColor} handleColorPick={handleColorPick} />
-          )}
-
-          {/* === PANNEAUX PARTAGÉS === */}
-          {['Button', 'Label', 'HoverArea'].includes(selectedComponent.type) && (
-            <TranslatableTextPanel selectedComponent={selectedComponent} updateSelectedComponent={updateSelectedComponent} />
-          )}
-          {['ImageButton', 'Image', 'PlayerInventory'].includes(selectedComponent.type) && (
-            <TextureConfigPanel selectedComponent={selectedComponent} updateSelectedComponent={updateSelectedComponent} loadedAssets={loadedAssets} getHtmlColor={getHtmlColor} handleColorPick={handleColorPick} />
-          )}
-          {selectedComponent.type === 'Label' && (
-            <LabelPanel selectedComponent={selectedComponent} updateSelectedComponent={updateSelectedComponent} getHtmlColor={getHtmlColor} handleColorPick={handleColorPick} />
-          )}
-
-          {/* === LAYOUT GLOBAL === */}
-          <LayoutPanel selectedComponent={selectedComponent} updateSelectedComponent={updateSelectedComponent} />
+          {/* === PANNEAUX DYNAMIQUES VIA LE REGISTRE === */}
+          {WidgetRegistry.renderInspector(selectedComponent.type, {
+            selectedComponent,
+            updateSelectedComponent,
+            loadedAssets,
+            guiConfig,
+            getHtmlColor,
+            handleColorPick
+          })}
 
           <button
             onClick={onDelete}

@@ -2,25 +2,26 @@ import React, { useState, useRef, useEffect } from 'react';
 import PropertiesInspector from './components/PropertiesInspector';
 import { generateJavaCode } from './utils/javaGenerator';
 import { serializeProjectJson, triggerDownload } from './utils/jsonGenerator';
+import { WidgetRegistry } from './widgets/WidgetRegistry';
 
 export default function App() {
   const [components, setComponents] = useState([]);
   const [selectedId, setSelectedId] = useState(null);
-  
+
   const [draggingId, setDraggingId] = useState(null);
   const [resizingId, setResizingId] = useState(null);
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0, origX: 0, origY: 0 });
   const [initialSize, setInitialSize] = useState({ width: 0, height: 0 });
 
-  const [loadedAssets, setLoadedAssets] = useState([]); 
+  const [loadedAssets, setLoadedAssets] = useState([]);
 
   const [guiConfig, setGuiConfig] = useState({
     modId: "pondertestgui",
     className: "MyCustomScreen",
     guiTitle: "Ponder Custom Menu",
-    menuPackage: "", 
-    screenPackage: "", 
-    backgroundType: "CUSTOM", 
+    menuPackage: "",
+    screenPackage: "",
+    backgroundType: "CUSTOM",
     customTexture: "",
     bgWidth: 176,
     bgHeight: 166,
@@ -31,29 +32,14 @@ export default function App() {
   });
 
   const fileInputRef = useRef(null);
-  
+
   const [scale, setScale] = useState(1);
   const [pan, setPan] = useState({ x: 0, y: 0 });
   const [isPanning, setIsPanning] = useState(false);
   const panStartRef = useRef({ x: 0, y: 0 });
   const workspaceRef = useRef(null);
 
-  const tools = [
-    { type: 'Label', label: 'Text (Label)', defaultWidth: 100, defaultHeight: 20 },
-    { type: 'Button', label: 'Button', defaultWidth: 120, defaultHeight: 20 },
-    { type: 'ImageButton', label: 'Image Button', defaultWidth: 20, defaultHeight: 20 },
-    { type: 'Image', label: 'Static Image', defaultWidth: 50, defaultHeight: 50 },
-    { type: 'ItemDisplay', label: 'Item Display', defaultWidth: 16, defaultHeight: 16 },
-    { type: 'EntityDisplay', label: 'Entity Display', defaultWidth: 40, defaultHeight: 60 },
-    { type: 'Slider', label: 'Slider Button', defaultWidth: 150, defaultHeight: 20 },
-    { type: 'ProgressBar', label: 'Progress Bar', defaultWidth: 100, defaultHeight: 10 },
-    { type: 'HoverArea', label: 'Tooltip Hover Zone', defaultWidth: 50, defaultHeight: 50 },
-    { type: 'EditBox', label: 'Input Field', defaultWidth: 150, defaultHeight: 20 },
-    { type: 'InputSlot', label: 'Input Slot (18x18)', defaultWidth: 18, defaultHeight: 18 },
-    { type: 'OutputSlot', label: 'Output Slot (18x18)', defaultWidth: 18, defaultHeight: 18 },
-    { type: 'PlayerInventory', label: 'Player Inventory', defaultWidth: 162, defaultHeight: 76 },
-    { type: 'ScrollPanel', label: 'Scroll Panel', defaultWidth: 200, defaultHeight: 150 },
-  ];
+  const tools = WidgetRegistry.getTools();
 
   const handleToolDragStart = (e, tool) => {
     e.dataTransfer.setData('text/plain', 'new_tool');
@@ -95,17 +81,18 @@ export default function App() {
 
   const handleResizeMouseDown = (e, comp) => {
     if (e.button !== 0 || isPanning) return;
-    if (['PlayerInventory', 'ItemDisplay', 'InputSlot', 'OutputSlot'].includes(comp.type)) return; 
+    const widget = WidgetRegistry.getWidget(comp.type);
+    if (!widget || !widget.isResizable) return;
     e.stopPropagation();
     e.preventDefault();
     setResizingId(comp.id);
-    setDragOffset({ startX: e.clientX, startY: e.clientY }); 
+    setDragOffset({ startX: e.clientX, startY: e.clientY });
     setInitialSize({ width: comp.width, height: comp.height });
   };
 
   const handleComponentContextMenu = (e, comp) => {
     e.preventDefault(); e.stopPropagation();
-    setSelectedId(comp.id); 
+    setSelectedId(comp.id);
   };
 
   const handleCanvasMouseMove = (e) => {
@@ -120,13 +107,13 @@ export default function App() {
     if (resizingId) {
       const deltaX = (e.clientX - dragOffset.startX) / scale;
       const deltaY = (e.clientY - dragOffset.startY) / scale;
-      
+
       setComponents(components.map(comp => {
         if (comp.id === resizingId) {
-          return { 
-            ...comp, 
-            width: Math.max(10, Math.round(initialSize.width + deltaX)), 
-            height: Math.max(10, Math.round(initialSize.height + deltaY)) 
+          return {
+            ...comp,
+            width: Math.max(10, Math.round(initialSize.width + deltaX)),
+            height: Math.max(10, Math.round(initialSize.height + deltaY))
           };
         }
         return comp;
@@ -170,7 +157,7 @@ export default function App() {
       setIsPanning(true);
       panStartRef.current = { x: e.clientX - pan.x, y: e.clientY - pan.y };
     } else {
-      setSelectedId(null); 
+      setSelectedId(null);
     }
   };
 
@@ -179,11 +166,11 @@ export default function App() {
       e.preventDefault();
       const zoomSensitivity = 0.001;
       const delta = -e.deltaY * zoomSensitivity;
-      const newScale = Math.max(0.2, Math.min(scale + delta, 5)); 
+      const newScale = Math.max(0.2, Math.min(scale + delta, 5));
       setScale(newScale);
     }
   };
-  
+
   useEffect(() => {
     const workspace = workspaceRef.current;
     if (workspace) {
@@ -208,7 +195,7 @@ export default function App() {
 
     const compWidth = parseInt(e.dataTransfer.getData('defaultWidth'), 10);
     const compHeight = parseInt(e.dataTransfer.getData('defaultHeight'), 10);
-    
+
     let dropX = Math.round((e.clientX - rect.left) / scale);
     let dropY = Math.round((e.clientY - rect.top) / scale);
 
@@ -227,52 +214,18 @@ export default function App() {
       y: dropY,
       width: compWidth,
       height: compHeight,
-      text: (type === 'Label' || type === 'Button' || type === 'Slider') ? `My ${type}` : (type === 'HoverArea' ? 'tooltip.key' : ''),
-      placeholder: type === 'EditBox' ? 'Type here...' : '',
-      isTranslatable: false,
-      color: type === 'ProgressBar' ? '0xFF10B981' : '0xFFFFFFFF',
-      bgColor: type === 'ProgressBar' ? '0xFF3F3F46' : '',
-      texture: '',
       parentId: targetPanelId,
-      scrollX: false,
-      scrollY: true,
-      maxScrollDistance: 600,
-      minVal: 0,
-      maxVal: 100,
-      currentVal: 50,
-      useCustomTextures: false,
-      sliderTrackTex: '',
-      sliderThumbTex: '',
-      sliderThumbWidth: 8,
-      bgTexture: '',
-      fillTexture: '',
-      item: type === 'ItemDisplay' ? 'minecraft:apple' : '',
-      itemScale: 1.0,
-      itemRotationX: 0,
-      itemRotationY: 0,
-      itemRotationZ: 0,
-      entity: type === 'EntityDisplay' ? 'minecraft:zombie' : '',
-      entityScale: 30,
-      entityRotationX: 0,
-      entityRotationY: 0,
-      entityRotationZ: 0,
-      entityFollowMouse: true,
-      
-      // === NOUVEAU : SYSTÈME D'ACTIONS ===
-      actionType: 'NONE', // NONE, OPEN_SCREEN, CLOSE_SCREEN, PRINT_CONSOLE, UPDATE_LABEL, PLAY_SOUND, SEND_PACKET, etc.
-      actionTarget: '',
-      actionEvent: type === 'EditBox' ? 'ON_CHANGE' : '',
-      forceNumeric: false
+      ...WidgetRegistry.getInitialProps(type)
     };
     setComponents([...components, newComponent]);
   };
 
   const updateSelectedComponent = (property, value) => {
-    setComponents(prevComponents => 
+    setComponents(prevComponents =>
       prevComponents.map(comp => {
         if (comp.id === selectedId) {
           const updated = { ...comp, [property]: value };
-          
+
           if (property === 'scrollX' && value === true) {
             updated.scrollY = false;
             updated.vTrackTex = '';
@@ -282,7 +235,7 @@ export default function App() {
             updated.hTrackTex = '';
             updated.hThumbTex = '';
           }
-          
+
           return updated;
         }
         return comp;
@@ -331,129 +284,39 @@ export default function App() {
 
   const renderComponentElement = (comp) => {
     const isSelected = selectedId === comp.id;
-    const associatedAsset = loadedAssets.find(a => a.minecraftPath === comp.texture);
+    const widget = WidgetRegistry.getWidget(comp.type);
+    const isResizable = widget ? widget.isResizable : false;
 
-    if (comp.type === 'PlayerInventory') {
+    if (comp.type === 'ScrollPanel') {
+      const children = components.filter(c => c.parentId === comp.id);
+      const childrenElements = children.map(child => renderComponentElement(child));
       return (
         <div
-          key={comp.id}
-          onMouseDown={(e) => handleComponentMouseDown(e, comp)}
-          onContextMenu={(e) => handleComponentContextMenu(e, comp)}
-          style={{ 
-            position: 'absolute', left: `${comp.x}px`, top: `${comp.y}px`, width: `${comp.width}px`, height: `${comp.height}px`,
-            cursor: draggingId === comp.id ? 'grabbing' : 'grab',
-            backgroundImage: associatedAsset ? `url(${associatedAsset.localUrl})` : 'none',
-            backgroundSize: '100% 100%', backgroundRepeat: 'no-repeat', imageRendering: 'pixelated'
-          }}
-          className={`flex flex-col gap-1 p-1 border rounded-sm select-none group
-            ${isSelected ? 'border-emerald-400 ring-2 ring-emerald-500/20' : 'border-zinc-700'}
-            ${!associatedAsset ? 'bg-zinc-900/90' : ''}`}
+          key={comp.id} onMouseDown={(e) => handleComponentMouseDown(e, comp)} onContextMenu={(e) => handleComponentContextMenu(e, comp)} onDragOver={(e) => e.preventDefault()} onDrop={(e) => handleCanvasDrop(e, comp.id)}
+          style={{ position: 'absolute', left: `${comp.x}px`, top: `${comp.y}px`, width: `${comp.width}px`, height: `${comp.height}px` }}
+          className="group"
         >
-          <div className="flex flex-col gap-0.5 relative z-10 pointer-events-none">
-            {[0, 1, 2].map((row) => (
-              <div key={row} className="flex gap-0.5">
-                {Array.from({ length: 9 }).map((_, col) => (
-                  <div key={col} className={`w-[16px] h-[16px] border flex items-center justify-center text-[7px] text-zinc-600 font-mono ${!associatedAsset ? 'bg-zinc-950 border-zinc-800' : 'border-black/10 bg-black/5'}`}>
-                    {(row * 9) + col + 9}
-                  </div>
-                ))}
-              </div>
-            ))}
-          </div>
-          <div className={`h-1 ${!associatedAsset ? 'border-t border-dashed border-zinc-800' : ''}`} />
-          <div className="flex gap-0.5 relative z-10 pointer-events-none">
-            {Array.from({ length: 9 }).map((_, col) => (
-              <div key={col} className={`w-[16px] h-[16px] border flex items-center justify-center text-[7px] text-amber-500/70 font-mono font-bold ${!associatedAsset ? 'bg-zinc-950 border-zinc-700' : 'border-black/10 bg-black/5'}`}>
-                {col}
-              </div>
-            ))}
-          </div>
-          <div className="absolute -top-3.5 left-0 text-[8px] font-semibold text-zinc-400 bg-zinc-900 px-1 border border-zinc-700 border-b-0 rounded-t-sm uppercase pointer-events-none">
-            Player Inv
-          </div>
+          {WidgetRegistry.renderCanvas(comp.type, { comp, isSelected, loadedAssets, childrenElements })}
+          {isResizable && (
+            <div onMouseDown={(e) => handleResizeMouseDown(e, comp)} className="absolute bottom-0 right-0 w-3 h-3 bg-emerald-500 rounded-tl cursor-nwse-resize opacity-0 group-hover:opacity-100 transition-opacity z-50" />
+          )}
         </div>
       );
     }
-
-    const displayText = comp.isTranslatable ? `[T] ${comp.text}` : comp.text;
-    const displayHint = comp.isTranslatable ? `[T] ${comp.placeholder}` : comp.placeholder;
-    const isResizableType = !['PlayerInventory', 'ItemDisplay', 'InputSlot', 'OutputSlot'].includes(comp.type);
 
     return (
       <div
         key={comp.id}
         onMouseDown={(e) => handleComponentMouseDown(e, comp)}
         onContextMenu={(e) => handleComponentContextMenu(e, comp)}
-        style={{ 
+        style={{
           position: 'absolute', left: `${comp.x}px`, top: `${comp.y}px`, width: `${comp.width}px`, height: `${comp.height}px`,
-          cursor: draggingId === comp.id ? 'grabbing' : 'grab',
-          backgroundImage: associatedAsset && comp.type !== 'ProgressBar' ? `url(${associatedAsset.localUrl})` : 
-                           (comp.type === 'Image' && comp.isUrl && comp.texture ? `url(${comp.texture})` : 'none'),
-          backgroundSize: '100% 100%', backgroundRepeat: 'no-repeat', imageRendering: 'pixelated'
+          cursor: draggingId === comp.id ? 'grabbing' : 'grab'
         }}
-        className={`flex items-center justify-center text-[10px] border rounded font-sans group relative overflow-hidden
-          ${isSelected ? 'border-emerald-400 ring-2 ring-emerald-500/20 bg-emerald-950/10' : 'border-zinc-700'}
-          ${comp.type === 'Button' ? 'bg-zinc-700 text-zinc-200 border-zinc-500' : ''}
-          ${comp.type === 'Slider' ? 'bg-zinc-600 text-zinc-100 border-zinc-400 font-medium' : ''}
-          ${comp.type === 'ProgressBar' ? 'border-zinc-600' : ''}
-          ${comp.type === 'HoverArea' ? 'border-sky-500 border-dashed bg-sky-500/10 text-sky-200 text-center p-1' : ''}
-          ${comp.type === 'ItemDisplay' ? 'bg-emerald-900/30 text-emerald-400 border-emerald-600 border-dashed rounded-none' : ''}
-          ${comp.type === 'EntityDisplay' ? 'bg-red-900/30 text-red-400 border-red-600 border-dashed rounded-none' : ''}
-          ${comp.type === 'ImageButton' && !associatedAsset ? 'bg-amber-900/30 text-amber-300 border-amber-600' : ''}
-          ${comp.type === 'Image' && !associatedAsset ? 'bg-purple-950/40 text-purple-300 border-purple-600 border-dashed font-mono' : ''}
-          ${comp.type === 'EditBox' ? 'bg-zinc-950 text-zinc-400 border-zinc-800 px-2' : ''}
-          ${comp.type === 'InputSlot' || comp.type === 'OutputSlot' ? 'bg-zinc-600/30 text-zinc-300 border-zinc-500 rounded-none' : ''}
-          ${comp.type === 'Label' ? 'text-white font-semibold' : ''}
-        `}
+        className="group"
       >
-        <span className="relative z-10 pointer-events-none w-full h-full flex flex-col items-center justify-center text-center truncate">
-          {comp.type === 'Button' && displayText}
-          {comp.type === 'Slider' && `${displayText} [${comp.currentVal}]`}
-          {comp.type === 'HoverArea' && (displayText || 'Hover Tooltip Area')}
-          {comp.type === 'ImageButton' && !associatedAsset && "IMG BTN"}
-          {comp.type === 'Image' && !associatedAsset && "IMAGE"}
-          {comp.type === 'ItemDisplay' && (
-            <div style={{ transform: `scale(${comp.itemScale || 1}) rotateX(${comp.itemRotationX || 0}deg) rotateY(${comp.itemRotationY || 0}deg) rotateZ(${comp.itemRotationZ || 0}deg)` }}>
-              🍎
-            </div>
-          )}
-          {comp.type === 'EntityDisplay' && (
-            <div className="flex flex-col items-center gap-0.5 text-[8px]">
-              <span>🧟</span>
-              <span className="opacity-60">Sc:{comp.entityScale}</span>
-              {!comp.entityFollowMouse && <span className="opacity-60">R:{comp.entityRotationY}°</span>}
-            </div>
-          )}
-          {comp.type === 'Label' && displayText}
-          {comp.type === 'EditBox' && (displayHint || 'Text field')}
-          {comp.type === 'InputSlot' && "IN"}
-          {comp.type === 'OutputSlot' && "OUT"}
-        </span>
-        
-        {comp.type === 'ProgressBar' && (
-          <div 
-            className="absolute top-0 left-0 w-full h-full pointer-events-none overflow-hidden" 
-            style={{ 
-              backgroundColor: !comp.useCustomTextures ? (comp.bgColor ? comp.bgColor.replace('0xFF', '#') : '#3f3f46') : 'transparent',
-              backgroundImage: comp.useCustomTextures && comp.bgTexture ? `url(${loadedAssets.find(a => a.minecraftPath === comp.bgTexture)?.localUrl})` : 'none',
-              backgroundSize: '100% 100%',
-              imageRendering: 'pixelated'
-            }}
-          >
-            <div 
-              className="absolute top-0 left-0 h-full transition-all duration-200" 
-              style={{ 
-                width: `${Math.max(0, Math.min(100, ((comp.currentVal - comp.minVal) / (comp.maxVal - comp.minVal)) * 100))}%`,
-                backgroundColor: !comp.useCustomTextures ? (comp.color ? comp.color.replace('0xFF', '#') : '#10b981') : 'transparent',
-                backgroundImage: comp.useCustomTextures && comp.fillTexture ? `url(${loadedAssets.find(a => a.minecraftPath === comp.fillTexture)?.localUrl})` : 'none',
-                backgroundSize: `${comp.width}px ${comp.height}px`, 
-                imageRendering: 'pixelated'
-              }} 
-            />
-          </div>
-        )}
-
-        {isResizableType && (
+        {WidgetRegistry.renderCanvas(comp.type, { comp, isSelected, loadedAssets })}
+        {isResizable && (
           <div
             onMouseDown={(e) => handleResizeMouseDown(e, comp)}
             className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-emerald-500 rounded-tl cursor-nwse-resize opacity-0 group-hover:opacity-100 transition-opacity z-40"
@@ -464,41 +327,41 @@ export default function App() {
   };
 
   return (
-    <div 
-      style={{ display: 'flex', width: '100vw', height: '100vh', overflow: 'hidden' }} 
+    <div
+      style={{ display: 'flex', width: '100vw', height: '100vh', overflow: 'hidden' }}
       className="bg-zinc-900 text-white overflow-hidden select-none"
     >
-      
+
       {/* 1. LEFT PANEL */}
       <div style={{ width: '16rem', zIndex: 50 }} className="bg-zinc-800 p-4 border-r border-zinc-700 flex flex-col gap-4 overflow-hidden flex-shrink-0 relative">
         <h2 className="text-xl font-bold text-emerald-400 flex-shrink-0">Ponder GUI</h2>
-        
+
         <div className="flex flex-col gap-2 bg-zinc-900 p-3 rounded border border-zinc-700 flex-shrink-0">
           <span className="text-xs font-semibold text-zinc-400 uppercase">Class Configuration</span>
-          
+
           <label className="text-xs">Mod ID:</label>
-          <input type="text" value={guiConfig.modId} onChange={e => setGuiConfig({...guiConfig, modId: e.target.value})} className="bg-zinc-950 p-1 rounded border border-zinc-700 text-sm text-amber-400 w-full outline-none font-mono" />
+          <input type="text" value={guiConfig.modId} onChange={e => setGuiConfig({ ...guiConfig, modId: e.target.value })} className="bg-zinc-950 p-1 rounded border border-zinc-700 text-sm text-amber-400 w-full outline-none font-mono" />
 
           <label className="text-xs mt-1">Class Name:</label>
-          <input type="text" value={guiConfig.className} onChange={e => setGuiConfig({...guiConfig, className: e.target.value})} className="bg-zinc-950 p-1 rounded border border-zinc-700 text-sm text-emerald-300 w-full outline-none"/>
-          
+          <input type="text" value={guiConfig.className} onChange={e => setGuiConfig({ ...guiConfig, className: e.target.value })} className="bg-zinc-950 p-1 rounded border border-zinc-700 text-sm text-emerald-300 w-full outline-none" />
+
           <label className="text-xs mt-1">Menu Package (Optional):</label>
-          <input type="text" value={guiConfig.menuPackage || ""} onChange={e => setGuiConfig({...guiConfig, menuPackage: e.target.value})} placeholder={`com.${guiConfig.modId}.world.inventory`} className="bg-zinc-950 p-1 rounded border border-zinc-700 text-[10px] w-full outline-none font-mono text-zinc-300 placeholder:text-zinc-600"/>
-          
+          <input type="text" value={guiConfig.menuPackage || ""} onChange={e => setGuiConfig({ ...guiConfig, menuPackage: e.target.value })} placeholder={`com.${guiConfig.modId}.world.inventory`} className="bg-zinc-950 p-1 rounded border border-zinc-700 text-[10px] w-full outline-none font-mono text-zinc-300 placeholder:text-zinc-600" />
+
           <label className="text-xs mt-1">Screen Package (Optional):</label>
-          <input type="text" value={guiConfig.screenPackage || ""} onChange={e => setGuiConfig({...guiConfig, screenPackage: e.target.value})} placeholder={`com.${guiConfig.modId}.client.gui`} className="bg-zinc-950 p-1 rounded border border-zinc-700 text-[10px] w-full outline-none font-mono text-zinc-300 placeholder:text-zinc-600"/>
+          <input type="text" value={guiConfig.screenPackage || ""} onChange={e => setGuiConfig({ ...guiConfig, screenPackage: e.target.value })} placeholder={`com.${guiConfig.modId}.client.gui`} className="bg-zinc-950 p-1 rounded border border-zinc-700 text-[10px] w-full outline-none font-mono text-zinc-300 placeholder:text-zinc-600" />
 
           <label className="text-xs mt-1">In-Game Title:</label>
-          <input type="text" value={guiConfig.guiTitle} onChange={e => setGuiConfig({...guiConfig, guiTitle: e.target.value})} className="bg-zinc-950 p-1 rounded border border-zinc-700 text-sm w-full outline-none"/>
-          
+          <input type="text" value={guiConfig.guiTitle} onChange={e => setGuiConfig({ ...guiConfig, guiTitle: e.target.value })} className="bg-zinc-950 p-1 rounded border border-zinc-700 text-sm w-full outline-none" />
+
           <div className="grid grid-cols-2 gap-2 mt-1 border-t border-zinc-800 pt-2">
             <div>
               <label className="text-[10px] text-zinc-400">GUI Width (px):</label>
-              <input type="number" value={guiConfig.bgWidth} onChange={e => setGuiConfig({...guiConfig, bgWidth: parseInt(e.target.value, 10) || 0})} className="w-full bg-zinc-950 p-1 rounded border border-zinc-700 text-xs text-center font-mono outline-none text-emerald-300" />
+              <input type="number" value={guiConfig.bgWidth} onChange={e => setGuiConfig({ ...guiConfig, bgWidth: parseInt(e.target.value, 10) || 0 })} className="w-full bg-zinc-950 p-1 rounded border border-zinc-700 text-xs text-center font-mono outline-none text-emerald-300" />
             </div>
             <div>
               <label className="text-[10px] text-zinc-400">GUI Height (px):</label>
-              <input type="number" value={guiConfig.bgHeight} onChange={e => setGuiConfig({...guiConfig, bgHeight: parseInt(e.target.value, 10) || 0})} className="w-full bg-zinc-950 p-1 rounded border border-zinc-700 text-xs text-center font-mono outline-none text-emerald-300" />
+              <input type="number" value={guiConfig.bgHeight} onChange={e => setGuiConfig({ ...guiConfig, bgHeight: parseInt(e.target.value, 10) || 0 })} className="w-full bg-zinc-950 p-1 rounded border border-zinc-700 text-xs text-center font-mono outline-none text-emerald-300" />
             </div>
           </div>
         </div>
@@ -534,9 +397,9 @@ export default function App() {
       </div>
 
       {/* 2. THE WORKSPACE CANVAS */}
-      <div 
+      <div
         ref={workspaceRef}
-        style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', position: 'relative' }} 
+        style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', position: 'relative' }}
         className="bg-zinc-950 select-none"
         onMouseDown={handleWorkspaceMouseDown}
         onMouseMove={handleCanvasMouseMove}
@@ -549,32 +412,32 @@ export default function App() {
             <button onClick={() => setScale(s => Math.max(0.2, s - 0.2))} className="w-6 h-6 flex items-center justify-center hover:bg-zinc-600 rounded text-zinc-300 font-bold">-</button>
             <span className="text-[10px] w-12 text-center font-mono text-zinc-300">{Math.round(scale * 100)}%</span>
             <button onClick={() => setScale(s => Math.min(5, s + 0.2))} className="w-6 h-6 flex items-center justify-center hover:bg-zinc-600 rounded text-zinc-300 font-bold">+</button>
-            <button onClick={() => { setScale(1); setPan({x:0, y:0}); }} className="px-2 h-6 flex items-center justify-center hover:bg-zinc-600 rounded text-[10px] text-zinc-300 border-l border-zinc-700 ml-1">Reset</button>
+            <button onClick={() => { setScale(1); setPan({ x: 0, y: 0 }); }} className="px-2 h-6 flex items-center justify-center hover:bg-zinc-600 rounded text-[10px] text-zinc-300 border-l border-zinc-700 ml-1">Reset</button>
           </div>
         </div>
 
         <div className="absolute bottom-4 left-4 text-xs text-zinc-400 bg-zinc-900/80 px-3 py-1.5 rounded-md border border-zinc-800 backdrop-blur-sm pointer-events-none z-50 shadow-lg leading-tight">
-          <span className="font-bold text-zinc-300">Controls:</span><br/>
-          • Drag & Drop to add items<br/>
-          • Right-Click to inspect properties<br/>
-          • Ctrl + Scroll to Zoom In/Out<br/>
+          <span className="font-bold text-zinc-300">Controls:</span><br />
+          • Drag & Drop to add items<br />
+          • Right-Click to inspect properties<br />
+          • Ctrl + Scroll to Zoom In/Out<br />
           • Middle Click (or Alt+Click) to Pan
         </div>
-        
-        <div 
-          style={{ 
+
+        <div
+          style={{
             transform: `translate(${pan.x}px, ${pan.y}px) scale(${scale})`,
-            transformOrigin: '0 0', 
-            width: '100%', 
+            transformOrigin: '0 0',
+            width: '100%',
             height: '100%',
             position: 'absolute',
             top: 0,
             left: 0
           }}
         >
-          <div 
-            style={{ 
-              width: `${guiConfig.bgWidth}px`, 
+          <div
+            style={{
+              width: `${guiConfig.bgWidth}px`,
               height: `${guiConfig.bgHeight}px`,
               position: 'absolute',
               left: '50%',
@@ -582,18 +445,18 @@ export default function App() {
               transform: 'translate(-50%, -50%)',
             }}
             className="bg-zinc-800 border-2 border-zinc-700 shadow-[0_0_50px_rgba(0,0,0,0.5)] overflow-visible"
-            onDragOver={(e) => e.preventDefault()} 
+            onDragOver={(e) => e.preventDefault()}
             onDrop={(e) => handleCanvasDrop(e, null)}
           >
             {guiConfig.backgroundType === "CUSTOM" && (() => {
               const bgAsset = loadedAssets.find(a => a.minecraftPath === guiConfig.customTexture);
               return bgAsset ? (
-                <div 
-                  style={{ 
+                <div
+                  style={{
                     position: 'absolute', top: 0, left: 0, width: '100%', height: '100%',
                     backgroundImage: `url(${bgAsset.localUrl})`,
                     backgroundSize: '100% 100%', backgroundRepeat: 'no-repeat', imageRendering: 'pixelated'
-                  }} 
+                  }}
                   className="pointer-events-none"
                 />
               ) : null;
@@ -602,24 +465,8 @@ export default function App() {
             <div className="absolute top-0 left-0 w-2 h-2 border-l-2 border-t-2 border-red-500 z-50 pointer-events-none" title="Point 0,0" />
 
             {rootComponents.map((comp) => {
-              if (comp.type === 'ScrollPanel') {
-                const children = components.filter(c => c.parentId === comp.id);
-                return (
-                  <div
-                    key={comp.id} onMouseDown={(e) => handleComponentMouseDown(e, comp)} onContextMenu={(e) => handleComponentContextMenu(e, comp)} onDragOver={(e) => e.preventDefault()} onDrop={(e) => handleCanvasDrop(e, comp.id)}
-                    style={{ position: 'absolute', left: `${comp.x}px`, top: `${comp.y}px`, width: `${comp.width}px`, height: `${comp.height}px` }}
-                    className={`border rounded flex flex-col bg-slate-900/40 border-blue-500/50 overflow-hidden group ${selectedId === comp.id ? 'ring-2 ring-emerald-500/30 border-emerald-400' : ''}`}
-                  >
-                    <div className="bg-blue-950/60 text-blue-400 text-[9px] px-1.5 py-0.5 font-semibold border-b border-blue-900 pointer-events-none">Scroll Panel</div>
-                    <div className={`flex-1 relative p-1 custom-scrollbar ${comp.scrollY !== false ? 'overflow-y-auto' : 'overflow-y-hidden'} ${comp.scrollX ? 'overflow-x-auto' : 'overflow-x-hidden'}`}>
-                      <div style={{ width: comp.scrollX ? `${comp.maxScrollDistance || 1000}px` : '100%', height: comp.scrollY !== false ? `${comp.maxScrollDistance || 600}px` : '100%' }} className="relative">
-                        {children.map((child) => renderComponentElement(child))}
-                      </div>
-                    </div>
-                    <div onMouseDown={(e) => handleResizeMouseDown(e, comp)} className="absolute bottom-0 right-0 w-3 h-3 bg-emerald-500 rounded-tl cursor-nwse-resize opacity-0 group-hover:opacity-100 transition-opacity z-50" />
-                  </div>
-                );
-              }
+              // The ScrollPanel handles rendering its own children in WidgetRegistry now,
+              // but we need to pass the render function results to it.
               return renderComponentElement(comp);
             })}
           </div>
@@ -628,8 +475,8 @@ export default function App() {
 
       {/* 3. PROPERTIES INSPECTOR */}
       <div className="z-50 relative">
-        <PropertiesInspector 
-          selectedComponent={selectedComponent} updateSelectedComponent={updateSelectedComponent} onDelete={handleDeleteComponent} 
+        <PropertiesInspector
+          selectedComponent={selectedComponent} updateSelectedComponent={updateSelectedComponent} onDelete={handleDeleteComponent}
           loadedAssets={loadedAssets} guiConfig={guiConfig} setGuiConfig={setGuiConfig}
         />
       </div>
