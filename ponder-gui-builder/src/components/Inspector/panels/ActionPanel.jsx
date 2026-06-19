@@ -20,6 +20,8 @@ export default function ActionPanel({ selectedComponent, updateSelectedComponent
           <option value="TOGGLE_VISIBILITY">Toggle Component Visibility</option>
           <option value="CLOSE_SCREEN">Close GUI</option>
           <option value="SEND_PACKET">Send Network Packet</option>
+          <option value="EXECUTE_COMMAND">Execute Server Command</option>
+          <option value="COPY_TO_CLIPBOARD">Copy to Clipboard</option>
         </select>
       </div>
 
@@ -62,6 +64,21 @@ export default function ActionPanel({ selectedComponent, updateSelectedComponent
         <div className="mt-1">
           <label className="text-[10px] text-zinc-500">Packet Class Name</label>
           <input type="text" value={selectedComponent.actionTarget || ''} onChange={(e) => updateSelectedComponent('actionTarget', e.target.value)} className="w-full bg-zinc-900 p-1 rounded border border-zinc-700 text-xs outline-none text-white font-mono" placeholder="MyCustomC2SPacket" />
+        </div>
+      )}
+
+      {selectedComponent.actionType === 'EXECUTE_COMMAND' && (
+        <div className="mt-1">
+          <label className="text-[10px] text-zinc-500">Command (without slash)</label>
+          <div className="text-[9px] text-zinc-500 italic mb-1 leading-tight">Use {'${'}editBoxId{'}'} to append an EditBox value. E.g., ban {'${'}player_name_box{'}'}</div>
+          <input type="text" value={selectedComponent.actionTarget || ''} onChange={(e) => updateSelectedComponent('actionTarget', e.target.value)} className="w-full bg-zinc-900 p-1 rounded border border-zinc-700 text-xs outline-none text-amber-300 font-mono" placeholder="ban ${edit_box_1}" />
+        </div>
+      )}
+
+      {selectedComponent.actionType === 'COPY_TO_CLIPBOARD' && (
+        <div className="mt-1">
+          <label className="text-[10px] text-zinc-500">Text to Copy</label>
+          <input type="text" value={selectedComponent.actionTarget || ''} onChange={(e) => updateSelectedComponent('actionTarget', e.target.value)} className="w-full bg-zinc-900 p-1 rounded border border-zinc-700 text-xs outline-none text-sky-300 font-mono" placeholder="Text or ${editBoxId}" />
         </div>
       )}
 

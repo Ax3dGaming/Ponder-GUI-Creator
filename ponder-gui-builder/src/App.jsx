@@ -3,10 +3,13 @@ import PropertiesInspector from './components/PropertiesInspector';
 import { generateJavaCode } from './utils/javaGenerator';
 import { serializeProjectJson, triggerDownload } from './utils/jsonGenerator';
 import { WidgetRegistry } from './widgets/WidgetRegistry';
+import Hierarchy from './components/Hierarchy';
 
 export default function App() {
   const [components, setComponents] = useState([]);
   const [selectedId, setSelectedId] = useState(null);
+  const [selectedIds, setSelectedIds] = useState([]);
+  const clipboardRef = useRef(null);
 
   const [draggingId, setDraggingId] = useState(null);
   const [resizingId, setResizingId] = useState(null);
@@ -78,8 +81,28 @@ export default function App() {
   const handleComponentMouseDown = (e, comp) => {
     if (e.button !== 0 || isPanning) return;
     e.stopPropagation();
+
+    const activeSelectedIds = e.shiftKey ? (selectedIds.includes(comp.id) ? selectedIds.filter(id => id !== comp.id) : [...selectedIds, comp.id]) : (selectedIds.includes(comp.id) ? selectedIds : [comp.id]);
+    
+    if (e.shiftKey) {
+      setSelectedIds(activeSelectedIds);
+      if (!selectedIds.includes(comp.id)) setSelectedId(comp.id);
+      else if (selectedId === comp.id) setSelectedId(null);
+    } else {
+      setSelectedIds(activeSelectedIds);
+      setSelectedId(comp.id);
+    }
+
     setDraggingId(comp.id);
-    setDragOffset({ startX: e.clientX, startY: e.clientY, origX: comp.x, origY: comp.y });
+    
+    const origPositions = {};
+    components.forEach(c => {
+      if (activeSelectedIds.includes(c.id)) {
+        origPositions[c.id] = { x: c.x, y: c.y };
+      }
+    });
+
+    setDragOffset({ startX: e.clientX, startY: e.clientY, origPositions });
   };
 
   const handleResizeMouseDown = (e, comp) => {
@@ -130,9 +153,9 @@ export default function App() {
     const deltaY = (e.clientY - dragOffset.startY) / scale;
 
     setComponents(components.map(comp => {
-      if (comp.id === draggingId) {
-        let newX = dragOffset.origX + deltaX;
-        let newY = dragOffset.origY + deltaY;
+      if (dragOffset.origPositions && dragOffset.origPositions[comp.id]) {
+        let newX = dragOffset.origPositions[comp.id].x + deltaX;
+        let newY = dragOffset.origPositions[comp.id].y + deltaY;
 
         if (snapEnabled) {
           newX = Math.round(newX / snapSize) * snapSize;
@@ -192,6 +215,50 @@ export default function App() {
     }
   }, []);
 
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      // Don't trigger if typing in an input
+      if (document.activeElement.tagName === 'INPUT' || document.activeElement.tagName === 'TEXTAREA' || document.activeElement.tagName === 'SELECT') {
+        return;
+      }
+
+      if (e.key === 'Delete' || e.key === 'Backspace') {
+        if (selectedIds.length > 0) {
+          setComponents(prev => prev.filter(c => !selectedIds.includes(c.id)));
+          setSelectedIds([]);
+          setSelectedId(null);
+        }
+      }
+
+      if ((e.ctrlKey || e.metaKey) && e.key === 'c') {
+        if (selectedIds.length > 0) {
+          clipboardRef.current = components.filter(c => selectedIds.includes(c.id));
+        }
+      }
+
+      if ((e.ctrlKey || e.metaKey) && e.key === 'v') {
+        if (clipboardRef.current && clipboardRef.current.length > 0) {
+          const newComps = clipboardRef.current.map(c => {
+            const newId = `${c.type.toLowerCase()}_${Date.now()}_${Math.floor(Math.random() * 1000)}`;
+            return {
+              ...c,
+              id: newId,
+              x: c.x + 10,
+              y: c.y + 10
+            };
+          });
+          setComponents(prev => [...prev, ...newComps]);
+          const newIds = newComps.map(c => c.id);
+          setSelectedIds(newIds);
+          setSelectedId(newIds[0]);
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [selectedIds, components]);
+
   const handleCanvasDrop = (e, targetPanelId = null) => {
     e.preventDefault();
     e.stopPropagation();
@@ -231,6 +298,8 @@ export default function App() {
       ...WidgetRegistry.getInitialProps(type)
     };
     setComponents([...components, newComponent]);
+    setSelectedIds([newComponent.id]);
+    setSelectedId(newComponent.id);
   };
 
   const updateSelectedComponent = (property, value) => {
@@ -318,7 +387,7 @@ export default function App() {
     const widget = WidgetRegistry.getWidget(comp.type);
     const isResizable = widget ? widget.isResizable : false;
 
-    if (comp.type === 'ScrollPanel') {
+    if (comp.type === 'ScrollPanel' || comp.type === 'Group') {
       const children = components.filter(c => c.parentId === comp.id);
       const childrenElements = children.map(child => renderComponentElement(child));
       return (
@@ -367,54 +436,73 @@ export default function App() {
       <div style={{ width: '16rem', zIndex: 50 }} className="bg-zinc-800 p-4 border-r border-zinc-700 flex flex-col gap-4 overflow-hidden flex-shrink-0 relative">
         <h2 className="text-xl font-bold text-emerald-400 flex-shrink-0">Ponder GUI</h2>
 
-        <div className="flex flex-col gap-2 bg-zinc-900 p-3 rounded border border-zinc-700 flex-shrink-0">
-          <span className="text-xs font-semibold text-zinc-400 uppercase">Class Configuration</span>
+        <div className="flex-1 overflow-y-auto custom-scrollbar flex flex-col gap-2 pr-1">
+          <details className="group" open>
+            <summary className="text-xs font-semibold text-zinc-400 uppercase cursor-pointer select-none mb-2 outline-none">
+              Class Configuration
+            </summary>
+            <div className="flex flex-col gap-2 bg-zinc-900 p-3 rounded border border-zinc-700">
+              <label className="text-xs">Mod ID:</label>
+              <input type="text" value={guiConfig.modId} onChange={e => setGuiConfig({ ...guiConfig, modId: e.target.value })} className="bg-zinc-950 p-1 rounded border border-zinc-700 text-sm text-amber-400 w-full outline-none font-mono" />
 
-          <label className="text-xs">Mod ID:</label>
-          <input type="text" value={guiConfig.modId} onChange={e => setGuiConfig({ ...guiConfig, modId: e.target.value })} className="bg-zinc-950 p-1 rounded border border-zinc-700 text-sm text-amber-400 w-full outline-none font-mono" />
+              <label className="text-xs mt-1">Class Name:</label>
+              <input type="text" value={guiConfig.className} onChange={e => setGuiConfig({ ...guiConfig, className: e.target.value })} className="bg-zinc-950 p-1 rounded border border-zinc-700 text-sm text-emerald-300 w-full outline-none" />
 
-          <label className="text-xs mt-1">Class Name:</label>
-          <input type="text" value={guiConfig.className} onChange={e => setGuiConfig({ ...guiConfig, className: e.target.value })} className="bg-zinc-950 p-1 rounded border border-zinc-700 text-sm text-emerald-300 w-full outline-none" />
+              <label className="text-xs mt-1">Menu Package (Optional):</label>
+              <input type="text" value={guiConfig.menuPackage || ""} onChange={e => setGuiConfig({ ...guiConfig, menuPackage: e.target.value })} placeholder={`com.${guiConfig.modId}.world.inventory`} className="bg-zinc-950 p-1 rounded border border-zinc-700 text-[10px] w-full outline-none font-mono text-zinc-300 placeholder:text-zinc-600" />
 
-          <label className="text-xs mt-1">Menu Package (Optional):</label>
-          <input type="text" value={guiConfig.menuPackage || ""} onChange={e => setGuiConfig({ ...guiConfig, menuPackage: e.target.value })} placeholder={`com.${guiConfig.modId}.world.inventory`} className="bg-zinc-950 p-1 rounded border border-zinc-700 text-[10px] w-full outline-none font-mono text-zinc-300 placeholder:text-zinc-600" />
+              <label className="text-xs mt-1">Screen Package (Optional):</label>
+              <input type="text" value={guiConfig.screenPackage || ""} onChange={e => setGuiConfig({ ...guiConfig, screenPackage: e.target.value })} placeholder={`com.${guiConfig.modId}.client.gui`} className="bg-zinc-950 p-1 rounded border border-zinc-700 text-[10px] w-full outline-none font-mono text-zinc-300 placeholder:text-zinc-600" />
 
-          <label className="text-xs mt-1">Screen Package (Optional):</label>
-          <input type="text" value={guiConfig.screenPackage || ""} onChange={e => setGuiConfig({ ...guiConfig, screenPackage: e.target.value })} placeholder={`com.${guiConfig.modId}.client.gui`} className="bg-zinc-950 p-1 rounded border border-zinc-700 text-[10px] w-full outline-none font-mono text-zinc-300 placeholder:text-zinc-600" />
+              <label className="text-xs mt-1">In-Game Title:</label>
+              <input type="text" value={guiConfig.guiTitle} onChange={e => setGuiConfig({ ...guiConfig, guiTitle: e.target.value })} className="bg-zinc-950 p-1 rounded border border-zinc-700 text-sm w-full outline-none" />
 
-          <label className="text-xs mt-1">In-Game Title:</label>
-          <input type="text" value={guiConfig.guiTitle} onChange={e => setGuiConfig({ ...guiConfig, guiTitle: e.target.value })} className="bg-zinc-950 p-1 rounded border border-zinc-700 text-sm w-full outline-none" />
-
-          <div className="grid grid-cols-2 gap-2 mt-1 border-t border-zinc-800 pt-2">
-            <div>
-              <label className="text-[10px] text-zinc-400">GUI Width (px):</label>
-              <input type="number" value={guiConfig.bgWidth} onChange={e => setGuiConfig({ ...guiConfig, bgWidth: parseInt(e.target.value, 10) || 0 })} className="w-full bg-zinc-950 p-1 rounded border border-zinc-700 text-xs text-center font-mono outline-none text-emerald-300" />
-            </div>
-            <div>
-              <label className="text-[10px] text-zinc-400">GUI Height (px):</label>
-              <input type="number" value={guiConfig.bgHeight} onChange={e => setGuiConfig({ ...guiConfig, bgHeight: parseInt(e.target.value, 10) || 0 })} className="w-full bg-zinc-950 p-1 rounded border border-zinc-700 text-xs text-center font-mono outline-none text-emerald-300" />
-            </div>
-          </div>
-        </div>
-
-        <div className="flex flex-col gap-2 bg-zinc-900 p-3 rounded border border-zinc-700 flex-shrink-0">
-          <span className="text-xs font-semibold text-zinc-400 uppercase">Asset Manager</span>
-          <label className="bg-zinc-700 hover:bg-zinc-600 text-white font-medium py-1.5 px-2 rounded text-xs text-center cursor-pointer transition w-full">
-            Load Assets Folder
-            <input type="file" webkitdirectory="true" directory="true" onChange={handleAssetsFolderImport} className="hidden" />
-          </label>
-          {loadedAssets.length > 0 && <span className="text-[10px] text-emerald-400 font-mono text-center">{loadedAssets.length} textures linked</span>}
-        </div>
-
-        <div className="flex-1 flex flex-col gap-2 min-h-0">
-          <span className="text-xs font-semibold text-zinc-400 uppercase flex-shrink-0">Components</span>
-          <div className="flex-1 overflow-y-auto pr-1 flex flex-col gap-2 custom-scrollbar">
-            {tools.map((tool) => (
-              <div key={tool.type} draggable onDragStart={(e) => handleToolDragStart(e, tool)} className="p-2.5 bg-zinc-900 border border-zinc-700 rounded cursor-grab hover:bg-zinc-700 text-sm transition flex-shrink-0">
-                {tool.label}
+              <div className="grid grid-cols-2 gap-2 mt-1 border-t border-zinc-800 pt-2">
+                <div>
+                  <label className="text-[10px] text-zinc-400">GUI Width (px):</label>
+                  <input type="number" value={guiConfig.bgWidth} onChange={e => setGuiConfig({ ...guiConfig, bgWidth: parseInt(e.target.value, 10) || 0 })} className="w-full bg-zinc-950 p-1 rounded border border-zinc-700 text-xs text-center font-mono outline-none text-emerald-300" />
+                </div>
+                <div>
+                  <label className="text-[10px] text-zinc-400">GUI Height (px):</label>
+                  <input type="number" value={guiConfig.bgHeight} onChange={e => setGuiConfig({ ...guiConfig, bgHeight: parseInt(e.target.value, 10) || 0 })} className="w-full bg-zinc-950 p-1 rounded border border-zinc-700 text-xs text-center font-mono outline-none text-emerald-300" />
+                </div>
               </div>
-            ))}
-          </div>
+            </div>
+          </details>
+
+          <details className="group">
+            <summary className="text-xs font-semibold text-zinc-400 uppercase cursor-pointer select-none mb-2 outline-none">
+              Asset Manager
+            </summary>
+            <div className="flex flex-col gap-2 bg-zinc-900 p-3 rounded border border-zinc-700">
+              <label className="bg-zinc-700 hover:bg-zinc-600 text-white font-medium py-1.5 px-2 rounded text-xs text-center cursor-pointer transition w-full">
+                Load Assets Folder
+                <input type="file" webkitdirectory="true" directory="true" onChange={handleAssetsFolderImport} className="hidden" />
+              </label>
+              {loadedAssets.length > 0 && <span className="text-[10px] text-emerald-400 font-mono text-center">{loadedAssets.length} textures linked</span>}
+            </div>
+          </details>
+
+          <details className="group" open>
+            <summary className="text-xs font-semibold text-zinc-400 uppercase cursor-pointer select-none mb-2 outline-none mt-2">
+              Hierarchy
+            </summary>
+            <Hierarchy components={components} selectedId={selectedId} selectedIds={selectedIds} setSelectedId={setSelectedId} setSelectedIds={setSelectedIds} />
+          </details>
+
+          <details className="group" open>
+            <summary className="text-xs font-semibold text-zinc-400 uppercase cursor-pointer select-none mb-2 outline-none mt-2">
+              Components
+            </summary>
+            <div className="flex flex-col gap-2">
+
+              {tools.map((tool) => (
+                <div key={tool.type} draggable onDragStart={(e) => handleToolDragStart(e, tool)} className="p-2.5 bg-zinc-900 border border-zinc-700 rounded cursor-grab hover:bg-zinc-700 text-sm transition flex-shrink-0">
+                  {tool.label}
+                </div>
+              ))}
+            </div>
+          </details>
         </div>
 
         <div className="flex flex-col gap-1.5 pt-4 border-t border-zinc-700 flex-shrink-0">

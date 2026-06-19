@@ -26,6 +26,12 @@ import { PlayerInventoryWidget } from './PlayerInventory/PlayerInventory';
 import { PlayerInventoryGenerator } from './PlayerInventory/PlayerInventoryGenerator';
 import { ScrollPanelWidget } from './ScrollPanel/ScrollPanel';
 import { ScrollPanelGenerator } from './ScrollPanel/ScrollPanelGenerator';
+import { PlayerDisplayWidget } from './PlayerDisplay/PlayerDisplay';
+import { PlayerDisplayGenerator } from './PlayerDisplay/PlayerDisplayGenerator';
+import { DropdownWidget } from './Dropdown/Dropdown';
+import { DropdownGenerator } from './Dropdown/DropdownGenerator';
+import { GroupWidget } from './Group/Group';
+import { GroupGenerator } from './Group/GroupGenerator';
 
 const widgets = [
   { def: LabelWidget, gen: LabelGenerator },
@@ -41,7 +47,10 @@ const widgets = [
   { def: InputSlotWidget, gen: InputSlotGenerator },
   { def: OutputSlotWidget, gen: OutputSlotGenerator },
   { def: PlayerInventoryWidget, gen: PlayerInventoryGenerator },
-  { def: ScrollPanelWidget, gen: ScrollPanelGenerator }
+  { def: ScrollPanelWidget, gen: ScrollPanelGenerator },
+  { def: PlayerDisplayWidget, gen: PlayerDisplayGenerator },
+  { def: DropdownWidget, gen: DropdownGenerator },
+  { def: GroupWidget, gen: GroupGenerator }
 ];
 
 const registry = new Map();

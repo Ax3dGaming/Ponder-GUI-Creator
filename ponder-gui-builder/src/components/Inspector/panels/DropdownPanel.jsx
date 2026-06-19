@@ -1,0 +1,36 @@
+import React from 'react';
+
+export default function DropdownPanel({ selectedComponent, updateSelectedComponent }) {
+  const optionsString = (selectedComponent.options || []).join('\n');
+
+  const handleChange = (e) => {
+    const lines = e.target.value.split('\n');
+    updateSelectedComponent('options', lines);
+  };
+
+  return (
+    <div className="flex flex-col gap-2 bg-zinc-900 p-2.5 rounded border border-zinc-700 mt-1">
+      <span className="text-xs font-semibold text-zinc-400 uppercase">Dropdown Settings</span>
+
+      <div className="mt-1 flex flex-col gap-2">
+        <label className="text-[10px] text-zinc-400">Options (One per line)</label>
+        <textarea 
+          value={optionsString} 
+          onChange={handleChange} 
+          className="w-full bg-zinc-950 p-1.5 rounded border border-zinc-700 text-xs text-amber-300 outline-none font-mono h-24 resize-y" 
+          placeholder="Option 1\nOption 2\nOption 3" 
+        />
+        
+        <div>
+            <label className="text-[10px] text-zinc-400">Selected Index (Default)</label>
+            <input 
+                type="number" 
+                value={selectedComponent.selectedIndex || 0} 
+                onChange={(e) => updateSelectedComponent('selectedIndex', Math.max(0, parseInt(e.target.value, 10) || 0))} 
+                className="w-full bg-zinc-950 p-1.5 rounded border border-zinc-700 text-xs text-white outline-none font-mono mt-1" 
+            />
+        </div>
+      </div>
+    </div>
+  );
+}

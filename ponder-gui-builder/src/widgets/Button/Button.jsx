@@ -2,6 +2,7 @@ import React from 'react';
 import ButtonPanel from '../../components/Inspector/panels/ButtonPanel';
 import TranslatableTextPanel from '../../components/Inspector/panels/TranslatableTextPanel';
 import LayoutPanel from '../../components/Inspector/panels/LayoutPanel';
+import DisabledStatePanel from '../../components/Inspector/panels/DisabledStatePanel';
 import { parseMinecraftFormatting } from '../../utils/textFormatting';
 import { parsePlaceholdersReact } from '../../placeholders/PlaceholderRegistry';
 
@@ -36,6 +37,7 @@ export const ButtonWidget = {
     <>
       <ButtonPanel selectedComponent={selectedComponent} updateSelectedComponent={updateSelectedComponent} />
       <TranslatableTextPanel selectedComponent={selectedComponent} updateSelectedComponent={updateSelectedComponent} />
+      <DisabledStatePanel selectedComponent={selectedComponent} updateSelectedComponent={updateSelectedComponent} />
       <LayoutPanel selectedComponent={selectedComponent} updateSelectedComponent={updateSelectedComponent} />
     </>
   )

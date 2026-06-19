@@ -2,6 +2,7 @@ import React from 'react';
 import ButtonPanel from '../../components/Inspector/panels/ButtonPanel';
 import TextureConfigPanel from '../../components/Inspector/panels/TextureConfigPanel';
 import LayoutPanel from '../../components/Inspector/panels/LayoutPanel';
+import DisabledStatePanel from '../../components/Inspector/panels/DisabledStatePanel';
 
 export const ImageButtonWidget = {
   type: 'ImageButton',
@@ -40,7 +41,9 @@ export const ImageButtonWidget = {
   renderInspector: ({ selectedComponent, updateSelectedComponent, loadedAssets, getHtmlColor, handleColorPick }) => (
     <>
       <ButtonPanel selectedComponent={selectedComponent} updateSelectedComponent={updateSelectedComponent} />
+      <ActionPanel selectedComponent={selectedComponent} updateSelectedComponent={updateSelectedComponent} />
       <TextureConfigPanel selectedComponent={selectedComponent} updateSelectedComponent={updateSelectedComponent} loadedAssets={loadedAssets} getHtmlColor={getHtmlColor} handleColorPick={handleColorPick} />
+      <DisabledStatePanel selectedComponent={selectedComponent} updateSelectedComponent={updateSelectedComponent} />
       <LayoutPanel selectedComponent={selectedComponent} updateSelectedComponent={updateSelectedComponent} />
     </>
   )

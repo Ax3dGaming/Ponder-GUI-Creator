@@ -104,6 +104,7 @@ export const generateJavaCode = (guiConfig, components) => {
 
   let scrollPanelChildrenMap = {};
   let scrollPanelIds = [];
+  let tickCode = [];
 
   const getTextComponent = (comp) => {
       if (comp.isTranslatable) return `Component.translatable("${comp.text}")`;
@@ -126,24 +127,69 @@ export const generateJavaCode = (guiConfig, components) => {
           return `if (this.${comp.actionTarget} != null) this.${comp.actionTarget}.visible = !this.${comp.actionTarget}.visible;`;
       } else if (comp.actionType === 'SEND_PACKET') {
           return `// TODO: Send packet to server\n            // ModMessages.sendToServer(new ${comp.actionTarget || 'CustomPacket'}());`;
+      } else if (comp.actionType === 'EXECUTE_COMMAND') {
+          const targetString = comp.actionTarget || '';
+          let javaTarget = `"${targetString}"`;
+          if (targetString.includes('${')) {
+              javaTarget = `""`;
+              const parts = targetString.split(/(\\$\\{[^}]+\\})/g);
+              const appendChain = parts.map(p => {
+                  if (p.startsWith('${') && p.endsWith('}')) {
+                      return `this.${p.substring(2, p.length - 1)}.getValue()`;
+                  }
+                  return `"${p}"`;
+              }).filter(p => p !== '""').join(' + ');
+              if (appendChain) javaTarget = appendChain;
+          }
+          return `if (this.minecraft.player != null) this.minecraft.player.connection.sendCommand(${javaTarget});`;
+      } else if (comp.actionType === 'COPY_TO_CLIPBOARD') {
+          const targetString = comp.actionTarget || '';
+          let javaTarget = `"${targetString}"`;
+          if (targetString.includes('${')) {
+              javaTarget = `""`;
+              const parts = targetString.split(/(\\$\\{[^}]+\\})/g);
+              const appendChain = parts.map(p => {
+                  if (p.startsWith('${') && p.endsWith('}')) {
+                      return `this.${p.substring(2, p.length - 1)}.getValue()`;
+                  }
+                  return `"${p}"`;
+              }).filter(p => p !== '""').join(' + ');
+              if (appendChain) javaTarget = appendChain;
+          }
+          return `this.minecraft.keyboardHandler.setClipboard(${javaTarget});`;
       }
       return `// Click Action`;
   };
 
+    const getEffectiveCoords = (c) => {
+        let x = c.x, y = c.y, pId = c.parentId;
+        while (pId) {
+            const p = components.find(o => o.id === pId);
+            if (!p) break;
+            if (p.type === 'ScrollPanel') break;
+            x += p.x; y += p.y;
+            pId = p.parentId;
+        }
+        return { x, y, effectiveParentId: pId };
+    };
+
   components.forEach(comp => {
-    if (comp.type === 'ScrollPanel') return;
+    if (comp.type === 'ScrollPanel' || comp.type === 'Group') return;
+
+    const eff = getEffectiveCoords(comp);
+    const effComp = { ...comp, x: eff.x, y: eff.y, parentId: eff.effectiveParentId };
 
     const context = { guiConfig, getTextComponent, getButtonActionCode, slotIndexMap };
-    const result = WidgetRegistry.generateJava(comp.type, comp, context);
+    const result = WidgetRegistry.generateJava(effComp.type, effComp, context);
     
     let conditionWrapOpen = "";
     let conditionWrapClose = "";
 
-    if (comp.conditionOp || comp.conditionCreative || comp.conditionItem) {
+    if (effComp.conditionOp || effComp.conditionCreative || effComp.conditionItem) {
         const checks = [];
-        if (comp.conditionOp) checks.push("this.minecraft.player.hasPermissions(2)");
-        if (comp.conditionCreative) checks.push("this.minecraft.player.getAbilities().instabuild");
-        if (comp.conditionItem) checks.push(`this.minecraft.player.getInventory().contains(new net.minecraft.world.item.ItemStack(net.minecraft.core.registries.BuiltInRegistries.ITEM.getValue(net.minecraft.resources.ResourceLocation.parse("${comp.conditionItem}"))))`);
+        if (effComp.conditionOp) checks.push("this.minecraft.player.hasPermissions(2)");
+        if (effComp.conditionCreative) checks.push("this.minecraft.player.getAbilities().instabuild");
+        if (effComp.conditionItem) checks.push(`this.minecraft.player.getInventory().contains(new net.minecraft.world.item.ItemStack(net.minecraft.core.registries.BuiltInRegistries.ITEM.getValue(net.minecraft.resources.ResourceLocation.parse("${effComp.conditionItem}"))))`);
         
         if (checks.length > 0) {
             conditionWrapOpen = `if (${checks.join(" && ")}) {`;
@@ -165,44 +211,50 @@ export const generateJavaCode = (guiConfig, components) => {
         if (conditionWrapClose) renderBgCode.push(`        ${conditionWrapClose}`);
     }
     
-    if (comp.parentId && result.scrollChildrenCode && result.scrollChildrenCode.length > 0) {
-      if (!scrollPanelChildrenMap[comp.parentId]) scrollPanelChildrenMap[comp.parentId] = [];
-      if (conditionWrapOpen) scrollPanelChildrenMap[comp.parentId].push(`        ${conditionWrapOpen}`);
-      scrollPanelChildrenMap[comp.parentId].push(...result.scrollChildrenCode.map(line => conditionWrapOpen ? `    ${line}` : line));
-      if (conditionWrapClose) scrollPanelChildrenMap[comp.parentId].push(`        ${conditionWrapClose}`);
+    if (effComp.parentId && result.scrollChildrenCode && result.scrollChildrenCode.length > 0) {
+      if (!scrollPanelChildrenMap[effComp.parentId]) scrollPanelChildrenMap[effComp.parentId] = [];
+      if (conditionWrapOpen) scrollPanelChildrenMap[effComp.parentId].push(`        ${conditionWrapOpen}`);
+      scrollPanelChildrenMap[effComp.parentId].push(...result.scrollChildrenCode.map(line => conditionWrapOpen ? `    ${line}` : line));
+      if (conditionWrapClose) scrollPanelChildrenMap[effComp.parentId].push(`        ${conditionWrapClose}`);
     }
 
-    if (comp.hoverActionType && comp.hoverActionType !== 'NONE') {
-        fields.push(`    private boolean wasHovered_${comp.id} = false;`);
+    if (effComp.hoverActionType && effComp.hoverActionType !== 'NONE') {
+        fields.push(`    private boolean wasHovered_${effComp.id} = false;`);
         
         let hoverLogic = "";
-        if (comp.hoverActionType === 'PLAY_SOUND') {
-            const soundTarget = comp.hoverActionTarget ? `net.minecraft.sounds.SoundEvent.createVariableRangeEvent(net.minecraft.resources.ResourceLocation.parse("${comp.hoverActionTarget}"))` : `net.minecraft.sounds.SoundEvents.UI_BUTTON_CLICK.value()`;
+        if (effComp.hoverActionType === 'PLAY_SOUND') {
+            const soundTarget = effComp.hoverActionTarget ? `net.minecraft.sounds.SoundEvent.createVariableRangeEvent(net.minecraft.resources.ResourceLocation.parse("${effComp.hoverActionTarget}"))` : `net.minecraft.sounds.SoundEvents.UI_BUTTON_CLICK.value()`;
             hoverLogic = `net.minecraft.client.Minecraft.getInstance().getSoundManager().play(net.minecraft.client.resources.sounds.SimpleSoundInstance.forUI(${soundTarget}, 1.0F));`;
-        } else if (comp.hoverActionType === 'PRINT_CONSOLE') {
-            hoverLogic = `System.out.println("${comp.hoverActionTarget || 'Hovered!'}");`;
+        } else if (effComp.hoverActionType === 'PRINT_CONSOLE') {
+            hoverLogic = `System.out.println("${effComp.hoverActionTarget || 'Hovered!'}");`;
         }
 
-        const posX = comp.parentId ? `this.${comp.parentId}.getX() + ${comp.x}` : `this.leftPos + ${comp.x}`;
-        const posY = comp.parentId ? `this.${comp.parentId}.getY() + ${comp.y} - (int)this.${comp.parentId}.getScrollAmount()` : `this.topPos + ${comp.y}`;
+        const posX = effComp.parentId ? `this.${effComp.parentId}.getX() + ${effComp.x}` : `this.leftPos + ${effComp.x}`;
+        const posY = effComp.parentId ? `this.${effComp.parentId}.getY() + ${effComp.y} - (int)this.${effComp.parentId}.getScrollAmount()` : `this.topPos + ${effComp.y}`;
         
         const hCode = [
-            `        if (mouseX >= ${posX} && mouseX <= ${posX} + ${comp.width} && mouseY >= ${posY} && mouseY <= ${posY} + ${comp.height}) {`,
-            `            if (!this.wasHovered_${comp.id}) {`,
+            `        if (mouseX >= ${posX} && mouseX <= ${posX} + ${effComp.width} && mouseY >= ${posY} && mouseY <= ${posY} + ${effComp.height}) {`,
+            `            if (!this.wasHovered_${effComp.id}) {`,
             `                ${hoverLogic}`,
             `            }`,
-            `            this.wasHovered_${comp.id} = true;`,
+            `            this.wasHovered_${effComp.id} = true;`,
             `        } else {`,
-            `            this.wasHovered_${comp.id} = false;`,
+            `            this.wasHovered_${effComp.id} = false;`,
             `        }`
         ];
         
-        if (comp.parentId) {
-            if (!scrollPanelChildrenMap[comp.parentId]) scrollPanelChildrenMap[comp.parentId] = [];
-            scrollPanelChildrenMap[comp.parentId].push(...hCode);
+        if (effComp.parentId) {
+            if (!scrollPanelChildrenMap[effComp.parentId]) scrollPanelChildrenMap[effComp.parentId] = [];
+            scrollPanelChildrenMap[effComp.parentId].push(...hCode);
         } else {
             renderBgCode.push(...hCode);
         }
+    }
+    
+    if (effComp.disabledIfEmpty) {
+        tickCode.push(`        if (this.${effComp.id} != null && this.${effComp.disabledIfEmpty} != null) {`);
+        tickCode.push(`            this.${effComp.id}.active = !this.${effComp.disabledIfEmpty}.getValue().isEmpty();`);
+        tickCode.push(`        }`);
     }
   });
 
@@ -291,6 +343,14 @@ ${editBoxEnterChecks}
       labelsHideCode = `\n        this.titleLabelX = 99999;\n        this.inventoryLabelX = 99999;`;
   }
 
+  let combinedTickCode = [...tickCode];
+  if (guiConfig.onTickCode) {
+      combinedTickCode.push(...guiConfig.onTickCode.split('\n'));
+  }
+  let tickMethodCode = combinedTickCode.length > 0 ? `\n    @Override\n    public void containerTick() {\n        super.containerTick();\n${combinedTickCode.map(l => `        ${l}`).join('\n')}\n    }\n` : '';
+
+  let closeMethodCode = guiConfig.onCloseCode ? `\n    @Override\n    public void onClose() {\n${guiConfig.onCloseCode.split('\n').map(l => `        ${l}`).join('\n')}\n        super.onClose();\n    }\n` : '';
+
   const screenCode = `package ${actualScreenPackage};
 
 import net.minecraft.client.gui.GuiGraphics;
@@ -333,7 +393,7 @@ ${initCode.join('\n')}
 ${renderBgCode.join('\n')}
     }
 ${mouseListenersCode}
-${guiConfig.onTickCode ? `\n    @Override\n    public void containerTick() {\n        super.containerTick();\n${guiConfig.onTickCode.split('\\n').map(l => `        ${l}`).join('\\n')}\n    }\n` : ''}${guiConfig.onCloseCode ? `\n    @Override\n    public void onClose() {\n${guiConfig.onCloseCode.split('\\n').map(l => `        ${l}`).join('\\n')}\n        super.onClose();\n    }\n` : ''}
+${tickMethodCode}${closeMethodCode}
     @Override
     public boolean isPauseScreen() {
         return false;
