@@ -54,6 +54,16 @@ export default function PropertiesInspector({
             <label className="text-xs text-zinc-400">Unique ID (Java Fields)</label>
             <div className="text-xs text-emerald-400 bg-zinc-900 p-2 rounded mt-1 select-all font-mono break-all">{selectedComponent.id}</div>
           </div>
+          <div>
+            <label className="text-xs text-zinc-400">Developer Note / Comment</label>
+            <input 
+              type="text"
+              value={selectedComponent.comment || ''}
+              onChange={(e) => updateSelectedComponent('comment', e.target.value)}
+              placeholder="e.g. Close Button, Main Title..."
+              className="w-full bg-zinc-900 p-1.5 rounded border border-zinc-700 text-xs mt-1 outline-none text-sky-300"
+            />
+          </div>
 
           {/* === PANNEAUX DYNAMIQUES VIA LE REGISTRE === */}
           {WidgetRegistry.renderInspector(selectedComponent.type, {

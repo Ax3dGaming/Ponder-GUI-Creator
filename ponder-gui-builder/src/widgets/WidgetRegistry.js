@@ -32,6 +32,8 @@ import { DropdownWidget } from './Dropdown/Dropdown';
 import { DropdownGenerator } from './Dropdown/DropdownGenerator';
 import { GroupWidget } from './Group/Group';
 import { GroupGenerator } from './Group/GroupGenerator';
+import { SwitchWidget } from './Switch/Switch';
+import { SwitchGenerator } from './Switch/SwitchGenerator';
 
 const widgets = [
   { def: LabelWidget, gen: LabelGenerator },
@@ -50,7 +52,8 @@ const widgets = [
   { def: ScrollPanelWidget, gen: ScrollPanelGenerator },
   { def: PlayerDisplayWidget, gen: PlayerDisplayGenerator },
   { def: DropdownWidget, gen: DropdownGenerator },
-  { def: GroupWidget, gen: GroupGenerator }
+  { def: GroupWidget, gen: GroupGenerator },
+  { def: SwitchWidget, gen: SwitchGenerator }
 ];
 
 const registry = new Map();

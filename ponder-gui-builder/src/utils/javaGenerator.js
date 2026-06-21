@@ -197,9 +197,15 @@ export const generateJavaCode = (guiConfig, components) => {
         }
     }
 
+    if (effComp.comment) {
+        fields.push(`    // ${effComp.comment}`);
+    }
     if (result.fields) fields.push(...result.fields);
     
     if (result.initCode && result.initCode.length > 0) {
+        if (effComp.comment) {
+            initCode.push(`        // ${effComp.comment}`);
+        }
         if (conditionWrapOpen) initCode.push(`        ${conditionWrapOpen}`);
         initCode.push(...result.initCode.map(line => conditionWrapOpen ? `    ${line}` : line));
         if (conditionWrapClose) initCode.push(`        ${conditionWrapClose}`);
@@ -213,6 +219,9 @@ export const generateJavaCode = (guiConfig, components) => {
     
     if (effComp.parentId && result.scrollChildrenCode && result.scrollChildrenCode.length > 0) {
       if (!scrollPanelChildrenMap[effComp.parentId]) scrollPanelChildrenMap[effComp.parentId] = [];
+      if (effComp.comment) {
+          scrollPanelChildrenMap[effComp.parentId].push(`        // ${effComp.comment}`);
+      }
       if (conditionWrapOpen) scrollPanelChildrenMap[effComp.parentId].push(`        ${conditionWrapOpen}`);
       scrollPanelChildrenMap[effComp.parentId].push(...result.scrollChildrenCode.map(line => conditionWrapOpen ? `    ${line}` : line));
       if (conditionWrapClose) scrollPanelChildrenMap[effComp.parentId].push(`        ${conditionWrapClose}`);

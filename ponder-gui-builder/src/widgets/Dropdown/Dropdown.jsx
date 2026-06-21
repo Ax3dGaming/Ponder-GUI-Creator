@@ -11,7 +11,9 @@ export const DropdownWidget = {
 
   createInitialProps: () => ({
     options: ['Option 1', 'Option 2', 'Option 3'],
-    selectedIndex: 0
+    selectedIndex: 0,
+    buttonTexture: '',
+    listTexture: ''
   }),
 
   renderCanvas: ({ comp, isSelected }) => {

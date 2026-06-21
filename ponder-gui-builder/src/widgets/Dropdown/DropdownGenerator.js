@@ -24,8 +24,13 @@ export const DropdownGenerator = {
             @Override
             public void renderWidget(net.minecraft.client.gui.GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {
                 // Main Button Background
-                guiGraphics.fill(this.getX(), this.getY(), this.getX() + this.width, this.getY() + this.height, 0xFF3F3F46);
-                guiGraphics.renderOutline(this.getX(), this.getY(), this.width, this.height, 0xFF52525B);
+                String btnTex = "${comp.buttonTexture || ''}";
+                if (btnTex.isEmpty()) {
+                    guiGraphics.fill(this.getX(), this.getY(), this.getX() + this.width, this.getY() + this.height, 0xFF3F3F46);
+                    guiGraphics.renderOutline(this.getX(), this.getY(), this.width, this.height, 0xFF52525B);
+                } else {
+                    guiGraphics.blit(net.minecraft.resources.ResourceLocation.parse(btnTex), this.getX(), this.getY(), 0, 0, this.width, this.height, this.width, this.height);
+                }
                 
                 String display = options.length > 0 ? options[Math.min(selectedIndex, options.length - 1)] : "";
                 guiGraphics.drawString(net.minecraft.client.Minecraft.getInstance().font, display, this.getX() + 4, this.getY() + (this.height - 8) / 2, 0xFFFFFF, false);
@@ -36,8 +41,13 @@ export const DropdownGenerator = {
                     guiGraphics.pose().pushPose();
                     guiGraphics.pose().translate(0, 0, 400); // Bring to front
                     int listY = this.getY() + this.height;
-                    guiGraphics.fill(this.getX(), listY, this.getX() + this.width, listY + (options.length * 14), 0xFF27272A);
-                    guiGraphics.renderOutline(this.getX(), listY, this.width, options.length * 14, 0xFF52525B);
+                    String listTex = "${comp.listTexture || ''}";
+                    if (listTex.isEmpty()) {
+                        guiGraphics.fill(this.getX(), listY, this.getX() + this.width, listY + (options.length * 14), 0xFF27272A);
+                        guiGraphics.renderOutline(this.getX(), listY, this.width, options.length * 14, 0xFF52525B);
+                    } else {
+                        guiGraphics.blit(net.minecraft.resources.ResourceLocation.parse(listTex), this.getX(), listY, 0, 0, this.width, options.length * 14, this.width, options.length * 14);
+                    }
                     
                     for (int i = 0; i < options.length; i++) {
                         int itemY = listY + (i * 14);

@@ -32,32 +32,87 @@ export const PlayerDisplayGenerator = {
 
         fields.push(`    private net.minecraft.client.player.RemotePlayer dummyPlayer_${comp.id};`);
         fields.push(`    private String lastTarget_${comp.id} = "";`);
+        fields.push(`    private java.util.UUID targetUUID_${comp.id} = null;`);
+        fields.push(`    private void createDummyPlayer_${comp.id}(com.mojang.authlib.GameProfile profile) {
+        if (this.minecraft.level != null) {
+            this.dummyPlayer_${comp.id} = new net.minecraft.client.player.RemotePlayer(this.minecraft.level, profile) {
+                private net.minecraft.resources.ResourceLocation lastSkinTexture = null;
+                @Override
+                public net.minecraft.client.resources.PlayerSkin getSkin() {
+                    net.minecraft.client.resources.PlayerSkin skin = net.minecraft.client.Minecraft.getInstance().getSkinManager().getInsecureSkin(this.getGameProfile());
+                    if (skin != null && !skin.texture().equals(lastSkinTexture)) {
+                        lastSkinTexture = skin.texture();
+                    }
+                    return skin;
+                }
+                @Override
+                public boolean isModelPartShown(net.minecraft.world.entity.player.PlayerModelPart part) {
+                    return true;
+                }
+            };
+        }
+    }`);
 
         renderLogic = `
             String currentTarget_${comp.id} = String.valueOf(${javaTarget});
-            if (!currentTarget_${comp.id}.equals(this.lastTarget_${comp.id}) || this.dummyPlayer_${comp.id} == null) {
+
+            if (!currentTarget_${comp.id}.equals(this.lastTarget_${comp.id})) {
                 this.lastTarget_${comp.id} = currentTarget_${comp.id};
-                com.mojang.authlib.GameProfile profile = null;
+                this.dummyPlayer_${comp.id} = null;
+
                 if (${comp.isUuid}) {
                     try {
-                        profile = new com.mojang.authlib.GameProfile(java.util.UUID.fromString(currentTarget_${comp.id}), "Dummy");
-                    } catch (Exception e) {}
+                        this.targetUUID_${comp.id} = java.util.UUID.fromString(currentTarget_${comp.id});
+                        net.minecraft.client.multiplayer.PlayerInfo playerInfo = this.minecraft.getConnection().getPlayerInfo(this.targetUUID_${comp.id});
+
+                        if (playerInfo != null) {
+                            createDummyPlayer_${comp.id}(playerInfo.getProfile());
+                        } else {
+                            final java.util.UUID finalUUID = this.targetUUID_${comp.id};
+                            java.util.concurrent.CompletableFuture.supplyAsync(() -> {
+                                try {
+                                    String uuidStr = finalUUID.toString().replace("-", "");
+                                    java.net.URL url = new java.net.URL("https://sessionserver.mojang.com/session/minecraft/profile/" + uuidStr + "?unsigned=false");
+                                    java.io.InputStreamReader reader = new java.io.InputStreamReader(url.openStream());
+                                    com.google.gson.JsonObject json = com.google.gson.JsonParser.parseReader(reader).getAsJsonObject();
+                                    reader.close();
+
+                                    String name = json.has("name") ? json.get("name").getAsString() : "Dummy";
+                                    com.mojang.authlib.GameProfile tempProfile = new com.mojang.authlib.GameProfile(finalUUID, name);
+
+                                    if (json.has("properties")) {
+                                        for (com.google.gson.JsonElement element : json.getAsJsonArray("properties")) {
+                                            com.google.gson.JsonObject prop = element.getAsJsonObject();
+                                            String propName = prop.get("name").getAsString();
+                                            String propValue = prop.get("value").getAsString();
+                                            String propSignature = prop.has("signature") ? prop.get("signature").getAsString() : null;
+                                            tempProfile.getProperties().put(propName, new com.mojang.authlib.properties.Property(propName, propValue, propSignature));
+                                        }
+                                    }
+                                    return tempProfile;
+                                } catch (Exception e) {
+                                    return new com.mojang.authlib.GameProfile(finalUUID, "Dummy");
+                                }
+                            }).thenAcceptAsync(filledProfile -> {
+                                if (currentTarget_${comp.id}.equals(this.lastTarget_${comp.id})) {
+                                    createDummyPlayer_${comp.id}(filledProfile);
+                                }
+                            }, this.minecraft);
+                        }
+                    } catch (Exception e) {
+                        this.targetUUID_${comp.id} = java.util.UUID.randomUUID();
+                    }
                 } else {
-                    net.minecraft.client.multiplayer.PlayerInfo playerInfo = this.minecraft.getConnection().getPlayerInfo(currentTarget_${comp.id});
-                    if (playerInfo != null) profile = playerInfo.getProfile();
-                    else profile = new com.mojang.authlib.GameProfile(java.util.UUID.randomUUID(), currentTarget_${comp.id});
-                }
-                if (profile != null && this.minecraft.level != null) {
-                    this.dummyPlayer_${comp.id} = new net.minecraft.client.player.RemotePlayer(this.minecraft.level, profile);
-                } else {
-                    this.dummyPlayer_${comp.id} = null;
+                    this.targetUUID_${comp.id} = java.util.UUID.randomUUID();
+                    createDummyPlayer_${comp.id}(new com.mojang.authlib.GameProfile(this.targetUUID_${comp.id}, currentTarget_${comp.id}));
                 }
             }
-            
+
             if (this.dummyPlayer_${comp.id} != null) {
                 net.minecraft.client.gui.screens.inventory.InventoryScreen.renderEntityInInventoryFollowsMouse(guiGraphics, ${posX} - (${comp.width} / 2), ${posY} - ${comp.height}, ${posX} + (${comp.width} / 2), ${posY}, ${comp.scale}, 0.0625F, mouseX, mouseY, this.dummyPlayer_${comp.id});
             } else {
-                guiGraphics.blit(net.minecraft.client.resources.DefaultPlayerSkin.getDefaultTexture(), ${posX} - (${comp.width} / 2), ${posY} - ${comp.height}, 32, 32, ${comp.width}, ${comp.height}, 256, 256);
+                java.util.UUID fallbackUuid_${comp.id} = this.targetUUID_${comp.id} != null ? this.targetUUID_${comp.id} : java.util.UUID.randomUUID();
+                guiGraphics.blit(net.minecraft.client.resources.DefaultPlayerSkin.get(fallbackUuid_${comp.id}).texture(), ${posX} - (${comp.width} / 2), ${posY} - ${comp.height}, 32, 32, ${comp.width}, ${comp.height}, 256, 256);
             }
         `;
     }

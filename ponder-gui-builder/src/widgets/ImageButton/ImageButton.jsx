@@ -41,7 +41,6 @@ export const ImageButtonWidget = {
   renderInspector: ({ selectedComponent, updateSelectedComponent, loadedAssets, getHtmlColor, handleColorPick }) => (
     <>
       <ButtonPanel selectedComponent={selectedComponent} updateSelectedComponent={updateSelectedComponent} />
-      <ActionPanel selectedComponent={selectedComponent} updateSelectedComponent={updateSelectedComponent} />
       <TextureConfigPanel selectedComponent={selectedComponent} updateSelectedComponent={updateSelectedComponent} loadedAssets={loadedAssets} getHtmlColor={getHtmlColor} handleColorPick={handleColorPick} />
       <DisabledStatePanel selectedComponent={selectedComponent} updateSelectedComponent={updateSelectedComponent} />
       <LayoutPanel selectedComponent={selectedComponent} updateSelectedComponent={updateSelectedComponent} />

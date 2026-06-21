@@ -1,6 +1,6 @@
 import React from 'react';
 
-export default function DropdownPanel({ selectedComponent, updateSelectedComponent }) {
+export default function DropdownPanel({ selectedComponent, updateSelectedComponent, loadedAssets = [] }) {
   const optionsString = (selectedComponent.options || []).join('\n');
 
   const handleChange = (e) => {
@@ -29,6 +29,54 @@ export default function DropdownPanel({ selectedComponent, updateSelectedCompone
                 onChange={(e) => updateSelectedComponent('selectedIndex', Math.max(0, parseInt(e.target.value, 10) || 0))} 
                 className="w-full bg-zinc-950 p-1.5 rounded border border-zinc-700 text-xs text-white outline-none font-mono mt-1" 
             />
+        </div>
+
+        <div>
+            <label className="text-[10px] text-zinc-400">Button Texture (Optional)</label>
+            {loadedAssets.length > 0 ? (
+                <select
+                    value={selectedComponent.buttonTexture || ''}
+                    onChange={(e) => updateSelectedComponent('buttonTexture', e.target.value)}
+                    className="w-full bg-zinc-950 p-1.5 rounded border border-zinc-700 text-xs outline-none font-mono text-emerald-300 mt-1"
+                >
+                    <option value="">-- Select Button Texture --</option>
+                    {loadedAssets.map(asset => (
+                        <option key={asset.minecraftPath} value={asset.minecraftPath}>{asset.minecraftPath}</option>
+                    ))}
+                </select>
+            ) : (
+                <input 
+                    type="text" 
+                    value={selectedComponent.buttonTexture || ''} 
+                    onChange={(e) => updateSelectedComponent('buttonTexture', e.target.value)} 
+                    placeholder="modid:textures/gui/dropdown_btn.png"
+                    className="w-full bg-zinc-950 p-1.5 rounded border border-zinc-700 text-xs text-white outline-none font-mono mt-1" 
+                />
+            )}
+        </div>
+
+        <div>
+            <label className="text-[10px] text-zinc-400">List Texture (Optional)</label>
+            {loadedAssets.length > 0 ? (
+                <select
+                    value={selectedComponent.listTexture || ''}
+                    onChange={(e) => updateSelectedComponent('listTexture', e.target.value)}
+                    className="w-full bg-zinc-950 p-1.5 rounded border border-zinc-700 text-xs outline-none font-mono text-emerald-300 mt-1"
+                >
+                    <option value="">-- Select List Texture --</option>
+                    {loadedAssets.map(asset => (
+                        <option key={asset.minecraftPath} value={asset.minecraftPath}>{asset.minecraftPath}</option>
+                    ))}
+                </select>
+            ) : (
+                <input 
+                    type="text" 
+                    value={selectedComponent.listTexture || ''} 
+                    onChange={(e) => updateSelectedComponent('listTexture', e.target.value)} 
+                    placeholder="modid:textures/gui/dropdown_list.png"
+                    className="w-full bg-zinc-950 p-1.5 rounded border border-zinc-700 text-xs text-white outline-none font-mono mt-1" 
+                />
+            )}
         </div>
       </div>
     </div>
