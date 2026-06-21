@@ -13,7 +13,9 @@ export const DropdownWidget = {
     options: ['Option 1', 'Option 2', 'Option 3'],
     selectedIndex: 0,
     buttonTexture: '',
-    listTexture: ''
+    listTexture: '',
+    isUrlButton: false,
+    isUrlList: false
   }),
 
   renderCanvas: ({ comp, isSelected }) => {

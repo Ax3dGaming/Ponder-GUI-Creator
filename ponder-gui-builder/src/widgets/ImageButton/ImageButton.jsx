@@ -15,6 +15,7 @@ export const ImageButtonWidget = {
     actionType: 'NONE',
     actionTarget: '',
     texture: '',
+    textureHover: '',
     isUrl: false
   }),
 

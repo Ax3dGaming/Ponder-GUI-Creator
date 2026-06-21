@@ -8,12 +8,30 @@ export const SwitchGenerator = {
     const posX = comp.parentId ? `${comp.x}` : `this.leftPos + ${comp.x}`;
     const posY = comp.parentId ? `${comp.y}` : `this.topPos + ${comp.y}`;
     
+    const initCode = [];
+    let texOnStr = '""';
+    let texOffStr = '""';
+
+    if (comp.isUrlOn && comp.textureOn) {
+        texOnStr = `"${guiConfig?.modId || 'ponder'}:url_switchon_${comp.id}"`;
+        initCode.push(`        net.minecraft.client.Minecraft.getInstance().getTextureManager().register(net.minecraft.resources.ResourceLocation.parse(${texOnStr}), new net.minecraft.client.renderer.texture.HttpTexture(null, "${comp.textureOn}", net.minecraft.resources.ResourceLocation.parse("minecraft:textures/gui/container/inventory.png"), false, null));`);
+    } else if (comp.textureOn) {
+        texOnStr = `"${comp.textureOn}"`;
+    }
+
+    if (comp.isUrlOff && comp.textureOff) {
+        texOffStr = `"${guiConfig?.modId || 'ponder'}:url_switchoff_${comp.id}"`;
+        initCode.push(`        net.minecraft.client.Minecraft.getInstance().getTextureManager().register(net.minecraft.resources.ResourceLocation.parse(${texOffStr}), new net.minecraft.client.renderer.texture.HttpTexture(null, "${comp.textureOff}", net.minecraft.resources.ResourceLocation.parse("minecraft:textures/gui/container/inventory.png"), false, null));`);
+    } else if (comp.textureOff) {
+        texOffStr = `"${comp.textureOff}"`;
+    }
+
     let renderLogic = `
         new net.minecraft.client.gui.components.AbstractWidget(${posX}, ${posY}, ${comp.width}, ${comp.height}, Component.empty()) {
             @Override
             public void renderWidget(net.minecraft.client.gui.GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {
-                String texOn = "${comp.textureOn || ''}";
-                String texOff = "${comp.textureOff || ''}";
+                String texOn = ${texOnStr};
+                String texOff = ${texOffStr};
 
                 if (isToggled_${comp.id}) {
                     if (!texOn.isEmpty()) {
@@ -47,7 +65,6 @@ export const SwitchGenerator = {
         }
     `;
 
-    const initCode = [];
     const scrollChildrenCode = [];
     
     if (comp.parentId) {

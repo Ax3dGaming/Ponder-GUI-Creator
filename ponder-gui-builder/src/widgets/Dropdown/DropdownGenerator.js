@@ -8,6 +8,23 @@ export const DropdownGenerator = {
     const posX = comp.parentId ? `${comp.x}` : `this.leftPos + ${comp.x}`;
     const posY = comp.parentId ? `${comp.y}` : `this.topPos + ${comp.y}`;
 
+    let texBtnStr = '""';
+    let texListStr = '""';
+
+    if (comp.isUrlButton && comp.buttonTexture) {
+        texBtnStr = `"${guiConfig?.modId || 'ponder'}:url_dropdownbtn_${comp.id}"`;
+        initCode.push(`        net.minecraft.client.Minecraft.getInstance().getTextureManager().register(net.minecraft.resources.ResourceLocation.parse(${texBtnStr}), new net.minecraft.client.renderer.texture.HttpTexture(null, "${comp.buttonTexture}", net.minecraft.resources.ResourceLocation.parse("minecraft:textures/gui/container/inventory.png"), false, null));`);
+    } else if (comp.buttonTexture) {
+        texBtnStr = `"${comp.buttonTexture}"`;
+    }
+
+    if (comp.isUrlList && comp.listTexture) {
+        texListStr = `"${guiConfig?.modId || 'ponder'}:url_dropdownlist_${comp.id}"`;
+        initCode.push(`        net.minecraft.client.Minecraft.getInstance().getTextureManager().register(net.minecraft.resources.ResourceLocation.parse(${texListStr}), new net.minecraft.client.renderer.texture.HttpTexture(null, "${comp.listTexture}", net.minecraft.resources.ResourceLocation.parse("minecraft:textures/gui/container/inventory.png"), false, null));`);
+    } else if (comp.listTexture) {
+        texListStr = `"${comp.listTexture}"`;
+    }
+
     const optsString = (comp.options || []).map(opt => `"${opt.replace(/"/g, '\\"')}"`).join(', ');
 
     let renderLogic = `
@@ -24,7 +41,7 @@ export const DropdownGenerator = {
             @Override
             public void renderWidget(net.minecraft.client.gui.GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {
                 // Main Button Background
-                String btnTex = "${comp.buttonTexture || ''}";
+                String btnTex = ${texBtnStr};
                 if (btnTex.isEmpty()) {
                     guiGraphics.fill(this.getX(), this.getY(), this.getX() + this.width, this.getY() + this.height, 0xFF3F3F46);
                     guiGraphics.renderOutline(this.getX(), this.getY(), this.width, this.height, 0xFF52525B);
@@ -41,7 +58,7 @@ export const DropdownGenerator = {
                     guiGraphics.pose().pushPose();
                     guiGraphics.pose().translate(0, 0, 400); // Bring to front
                     int listY = this.getY() + this.height;
-                    String listTex = "${comp.listTexture || ''}";
+                    String listTex = ${texListStr};
                     if (listTex.isEmpty()) {
                         guiGraphics.fill(this.getX(), listY, this.getX() + this.width, listY + (options.length * 14), 0xFF27272A);
                         guiGraphics.renderOutline(this.getX(), listY, this.width, options.length * 14, 0xFF52525B);

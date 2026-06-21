@@ -3,7 +3,7 @@ import React from 'react';
 export default function TextureConfigPanel({ selectedComponent, updateSelectedComponent, loadedAssets, getHtmlColor, handleColorPick }) {
   return (
     <>
-      {selectedComponent.type === 'Image' && (
+      {(selectedComponent.type === 'Image' || selectedComponent.type === 'ImageButton') && (
         <div className="flex items-center gap-2 mt-1 mb-1">
           <input
             type="checkbox"
@@ -17,7 +17,7 @@ export default function TextureConfigPanel({ selectedComponent, updateSelectedCo
 
       <div>
         <label className="text-xs text-zinc-400">
-          {selectedComponent.isUrl ? 'Image Web URL' : 'Texture Asset Location'}
+          {selectedComponent.isUrl ? 'Image Web URL (Normal)' : 'Texture Asset Location (Normal)'}
         </label>
 
         {selectedComponent.isUrl ? (
@@ -51,6 +51,45 @@ export default function TextureConfigPanel({ selectedComponent, updateSelectedCo
           )
         )}
       </div>
+
+      {selectedComponent.type === 'ImageButton' && (
+        <div className="mt-2">
+          <label className="text-xs text-zinc-400">
+            {selectedComponent.isUrl ? 'Image Web URL (Hover)' : 'Texture Asset Location (Hover)'}
+          </label>
+
+          {selectedComponent.isUrl ? (
+            <input
+              type="text"
+              value={selectedComponent.textureHover || ''}
+              onChange={(e) => updateSelectedComponent('textureHover', e.target.value)}
+              className="w-full bg-zinc-900 p-1.5 rounded border border-zinc-700 text-xs mt-1 outline-none font-mono text-sky-300"
+              placeholder="https://example.com/image_hover.png"
+            />
+          ) : (
+            loadedAssets.length > 0 ? (
+              <select
+                value={selectedComponent.textureHover || ''}
+                onChange={(e) => updateSelectedComponent('textureHover', e.target.value)}
+                className="w-full bg-zinc-950 p-1.5 rounded border border-zinc-700 text-xs outline-none font-mono text-emerald-300 mt-1"
+              >
+                <option value="">-- Select hover texture asset --</option>
+                {loadedAssets.map(asset => (
+                  <option key={asset.minecraftPath} value={asset.minecraftPath}>{asset.minecraftPath}</option>
+                ))}
+              </select>
+            ) : (
+              <input
+                type="text"
+                value={selectedComponent.textureHover || ''}
+                onChange={(e) => updateSelectedComponent('textureHover', e.target.value)}
+                className="w-full bg-zinc-900 p-1.5 rounded border border-zinc-700 text-xs mt-1 outline-none font-mono text-zinc-300"
+                placeholder="modid:textures/gui/widgets_hover.png"
+              />
+            )
+          )}
+        </div>
+      )}
 
       {selectedComponent.type === 'Image' && !selectedComponent.isUrl && (
         <div className="grid grid-cols-2 gap-2 mt-2">

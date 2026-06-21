@@ -31,51 +31,77 @@ export default function DropdownPanel({ selectedComponent, updateSelectedCompone
             />
         </div>
 
-        <div>
-            <label className="text-[10px] text-zinc-400">Button Texture (Optional)</label>
-            {loadedAssets.length > 0 ? (
-                <select
-                    value={selectedComponent.buttonTexture || ''}
-                    onChange={(e) => updateSelectedComponent('buttonTexture', e.target.value)}
-                    className="w-full bg-zinc-950 p-1.5 rounded border border-zinc-700 text-xs outline-none font-mono text-emerald-300 mt-1"
-                >
-                    <option value="">-- Select Button Texture --</option>
-                    {loadedAssets.map(asset => (
-                        <option key={asset.minecraftPath} value={asset.minecraftPath}>{asset.minecraftPath}</option>
-                    ))}
-                </select>
-            ) : (
+        <div className="mt-2">
+            <div className="flex items-center gap-2 mb-1">
+                <input type="checkbox" checked={selectedComponent.isUrlButton === true} onChange={(e) => updateSelectedComponent('isUrlButton', e.target.checked)} className="rounded bg-zinc-950 border-zinc-700 accent-emerald-500" />
+                <label className="text-[10px] text-zinc-400">Web URL (Button Texture)</label>
+            </div>
+            {selectedComponent.isUrlButton ? (
                 <input 
                     type="text" 
                     value={selectedComponent.buttonTexture || ''} 
                     onChange={(e) => updateSelectedComponent('buttonTexture', e.target.value)} 
-                    placeholder="modid:textures/gui/dropdown_btn.png"
-                    className="w-full bg-zinc-950 p-1.5 rounded border border-zinc-700 text-xs text-white outline-none font-mono mt-1" 
+                    placeholder="https://example.com/dropdown_btn.png"
+                    className="w-full bg-zinc-900 p-1.5 rounded border border-zinc-700 text-xs text-sky-300 outline-none font-mono" 
                 />
+            ) : (
+                loadedAssets.length > 0 ? (
+                    <select
+                        value={selectedComponent.buttonTexture || ''}
+                        onChange={(e) => updateSelectedComponent('buttonTexture', e.target.value)}
+                        className="w-full bg-zinc-950 p-1.5 rounded border border-zinc-700 text-xs outline-none font-mono text-emerald-300"
+                    >
+                        <option value="">-- Select Button Texture --</option>
+                        {loadedAssets.map(asset => (
+                            <option key={asset.minecraftPath} value={asset.minecraftPath}>{asset.minecraftPath}</option>
+                        ))}
+                    </select>
+                ) : (
+                    <input 
+                        type="text" 
+                        value={selectedComponent.buttonTexture || ''} 
+                        onChange={(e) => updateSelectedComponent('buttonTexture', e.target.value)} 
+                        placeholder="modid:textures/gui/dropdown_btn.png"
+                        className="w-full bg-zinc-950 p-1.5 rounded border border-zinc-700 text-xs text-white outline-none font-mono" 
+                    />
+                )
             )}
         </div>
 
-        <div>
-            <label className="text-[10px] text-zinc-400">List Texture (Optional)</label>
-            {loadedAssets.length > 0 ? (
-                <select
-                    value={selectedComponent.listTexture || ''}
-                    onChange={(e) => updateSelectedComponent('listTexture', e.target.value)}
-                    className="w-full bg-zinc-950 p-1.5 rounded border border-zinc-700 text-xs outline-none font-mono text-emerald-300 mt-1"
-                >
-                    <option value="">-- Select List Texture --</option>
-                    {loadedAssets.map(asset => (
-                        <option key={asset.minecraftPath} value={asset.minecraftPath}>{asset.minecraftPath}</option>
-                    ))}
-                </select>
-            ) : (
+        <div className="mt-2">
+            <div className="flex items-center gap-2 mb-1">
+                <input type="checkbox" checked={selectedComponent.isUrlList === true} onChange={(e) => updateSelectedComponent('isUrlList', e.target.checked)} className="rounded bg-zinc-950 border-zinc-700 accent-emerald-500" />
+                <label className="text-[10px] text-zinc-400">Web URL (List Texture)</label>
+            </div>
+            {selectedComponent.isUrlList ? (
                 <input 
                     type="text" 
                     value={selectedComponent.listTexture || ''} 
                     onChange={(e) => updateSelectedComponent('listTexture', e.target.value)} 
-                    placeholder="modid:textures/gui/dropdown_list.png"
-                    className="w-full bg-zinc-950 p-1.5 rounded border border-zinc-700 text-xs text-white outline-none font-mono mt-1" 
+                    placeholder="https://example.com/dropdown_list.png"
+                    className="w-full bg-zinc-900 p-1.5 rounded border border-zinc-700 text-xs text-sky-300 outline-none font-mono" 
                 />
+            ) : (
+                loadedAssets.length > 0 ? (
+                    <select
+                        value={selectedComponent.listTexture || ''}
+                        onChange={(e) => updateSelectedComponent('listTexture', e.target.value)}
+                        className="w-full bg-zinc-950 p-1.5 rounded border border-zinc-700 text-xs outline-none font-mono text-emerald-300"
+                    >
+                        <option value="">-- Select List Texture --</option>
+                        {loadedAssets.map(asset => (
+                            <option key={asset.minecraftPath} value={asset.minecraftPath}>{asset.minecraftPath}</option>
+                        ))}
+                    </select>
+                ) : (
+                    <input 
+                        type="text" 
+                        value={selectedComponent.listTexture || ''} 
+                        onChange={(e) => updateSelectedComponent('listTexture', e.target.value)} 
+                        placeholder="modid:textures/gui/dropdown_list.png"
+                        className="w-full bg-zinc-950 p-1.5 rounded border border-zinc-700 text-xs text-white outline-none font-mono" 
+                    />
+                )
             )}
         </div>
       </div>

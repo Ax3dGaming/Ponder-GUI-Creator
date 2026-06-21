@@ -14,6 +14,8 @@ export const SwitchWidget = {
     defaultState: false,
     textureOn: '',
     textureOff: '',
+    isUrlOn: false,
+    isUrlOff: false,
     actionType: 'NONE',
     actionTarget: ''
   }),
